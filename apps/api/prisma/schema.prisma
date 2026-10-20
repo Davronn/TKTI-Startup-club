@@ -1,0 +1,287 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum OrganizationRole {
+  SUPER_ADMIN
+  ADMIN
+  MANAGER
+  VIEWER
+}
+
+enum StartupStatus {
+  ACTIVE
+  PAUSED
+  GRADUATED
+  ARCHIVED
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  ARCHIVE
+  RESTORE
+  LOGIN
+  LOGOUT
+  STAGE_CHANGE
+}
+
+model Organization {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String
+  slug        String   @unique
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  memberships OrganizationMember[]
+  stages      StartupStage[]
+  startups    Startup[]
+  tags        Tag[]
+  auditLogs   AuditLog[]
+
+  @@map("organizations")
+}
+
+model User {
+  id           String    @id @default(uuid()) @db.Uuid
+  email        String    @unique
+  fullName     String    @map("full_name")
+  passwordHash String    @map("password_hash")
+  avatarUrl    String?   @map("avatar_url")
+  isActive     Boolean   @default(true) @map("is_active")
+  lastLoginAt  DateTime? @map("last_login_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  memberships    OrganizationMember[]
+  curatedStartups Startup[]             @relation("StartupCurator")
+  createdStartups Startup[]             @relation("StartupCreatedBy")
+  updatedStartups Startup[]             @relation("StartupUpdatedBy")
+  stageChanges   StartupStageHistory[]
+  notes          StartupNote[]
+  sessions       UserSession[]
+  auditLogs      AuditLog[]
+  uploadedFiles  StartupFile[]
+
+  @@map("users")
+}
+
+model OrganizationMember {
+  id             String           @id @default(uuid()) @db.Uuid
+  organizationId String           @db.Uuid @map("organization_id")
+  userId         String           @db.Uuid @map("user_id")
+  role           OrganizationRole @default(VIEWER)
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+  @@index([userId])
+  @@map("organization_members")
+}
+
+model StartupStage {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @db.Uuid @map("organization_id")
+  name           String
+  slug           String
+  color          String   @default("#64748B")
+  position       Int
+  isActive       Boolean  @default(true) @map("is_active")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  startups     Startup[]
+  fromHistory  StartupStageHistory[] @relation("FromStage")
+  toHistory    StartupStageHistory[] @relation("ToStage")
+
+  @@unique([organizationId, slug])
+  @@unique([organizationId, position])
+  @@index([organizationId, isActive])
+  @@map("startup_stages")
+}
+
+model Startup {
+  id             String        @id @default(uuid()) @db.Uuid
+  organizationId String        @db.Uuid @map("organization_id")
+  name           String
+  slug           String
+  description    String?
+  problem        String?
+  solution       String?
+  industry       String?
+  website        String?
+  email          String?
+  phone          String?
+  location       String?
+  teamSize       Int?          @map("team_size")
+  foundedAt      DateTime?     @map("founded_at") @db.Date
+  joinedAt       DateTime      @default(now()) @map("joined_at") @db.Date
+  logoUrl        String?       @map("logo_url")
+  pitchDeckUrl   String?       @map("pitch_deck_url")
+  status         StartupStatus @default(ACTIVE)
+  currentStageId String        @db.Uuid @map("current_stage_id")
+  curatorId      String?       @db.Uuid @map("curator_id")
+  createdById    String        @db.Uuid @map("created_by_id")
+  updatedById    String        @db.Uuid @map("updated_by_id")
+  metadata       Json?
+  archivedAt     DateTime?     @map("archived_at")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+
+  organization Organization          @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  currentStage StartupStage          @relation(fields: [currentStageId], references: [id], onDelete: Restrict)
+  curator      User?                 @relation("StartupCurator", fields: [curatorId], references: [id], onDelete: SetNull)
+  createdBy    User                  @relation("StartupCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy    User                  @relation("StartupUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  members      StartupMember[]
+  stageHistory StartupStageHistory[]
+  notes        StartupNote[]
+  files        StartupFile[]
+  tags         StartupTag[]
+
+  @@unique([organizationId, slug])
+  @@index([organizationId, status])
+  @@index([organizationId, currentStageId])
+  @@index([organizationId, curatorId])
+  @@index([organizationId, createdAt])
+  @@map("startups")
+}
+
+model StartupMember {
+  id          String   @id @default(uuid()) @db.Uuid
+  startupId   String   @db.Uuid @map("startup_id")
+  fullName    String   @map("full_name")
+  role        String?
+  email       String?
+  phone       String?
+  linkedinUrl String?  @map("linkedin_url")
+  isFounder   Boolean  @default(false) @map("is_founder")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  startup Startup @relation(fields: [startupId], references: [id], onDelete: Cascade)
+
+  @@index([startupId])
+  @@map("startup_members")
+}
+
+model StartupStageHistory {
+  id          String   @id @default(uuid()) @db.Uuid
+  startupId   String   @db.Uuid @map("startup_id")
+  fromStageId String?  @db.Uuid @map("from_stage_id")
+  toStageId   String   @db.Uuid @map("to_stage_id")
+  changedById String   @db.Uuid @map("changed_by_id")
+  note        String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  startup   Startup       @relation(fields: [startupId], references: [id], onDelete: Cascade)
+  fromStage StartupStage? @relation("FromStage", fields: [fromStageId], references: [id], onDelete: SetNull)
+  toStage   StartupStage  @relation("ToStage", fields: [toStageId], references: [id], onDelete: Restrict)
+  changedBy User          @relation(fields: [changedById], references: [id], onDelete: Restrict)
+
+  @@index([startupId, createdAt])
+  @@map("startup_stage_history")
+}
+
+model StartupNote {
+  id        String   @id @default(uuid()) @db.Uuid
+  startupId String   @db.Uuid @map("startup_id")
+  authorId  String   @db.Uuid @map("author_id")
+  content   String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  startup Startup @relation(fields: [startupId], references: [id], onDelete: Cascade)
+  author  User    @relation(fields: [authorId], references: [id], onDelete: Restrict)
+
+  @@index([startupId, createdAt])
+  @@map("startup_notes")
+}
+
+model StartupFile {
+  id          String   @id @default(uuid()) @db.Uuid
+  startupId   String   @db.Uuid @map("startup_id")
+  name        String
+  objectKey   String   @unique @map("object_key")
+  contentType String   @map("content_type")
+  size        Int
+  uploadedBy  String   @db.Uuid @map("uploaded_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  startup  Startup @relation(fields: [startupId], references: [id], onDelete: Cascade)
+  uploader User    @relation(fields: [uploadedBy], references: [id], onDelete: Restrict)
+
+  @@index([startupId])
+  @@map("startup_files")
+}
+
+model Tag {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @db.Uuid @map("organization_id")
+  name           String
+  color          String   @default("#64748B")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  startups     StartupTag[]
+
+  @@unique([organizationId, name])
+  @@map("tags")
+}
+
+model StartupTag {
+  startupId String @db.Uuid @map("startup_id")
+  tagId     String @db.Uuid @map("tag_id")
+
+  startup Startup @relation(fields: [startupId], references: [id], onDelete: Cascade)
+  tag     Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([startupId, tagId])
+  @@map("startup_tags")
+}
+
+model UserSession {
+  id               String    @id @default(uuid()) @db.Uuid
+  userId           String    @db.Uuid @map("user_id")
+  refreshTokenHash String    @map("refresh_token_hash")
+  userAgent        String?   @map("user_agent")
+  ipAddress        String?   @map("ip_address")
+  expiresAt        DateTime  @map("expires_at")
+  revokedAt        DateTime? @map("revoked_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@map("user_sessions")
+}
+
+model AuditLog {
+  id             String      @id @default(uuid()) @db.Uuid
+  organizationId String      @db.Uuid @map("organization_id")
+  userId         String?     @db.Uuid @map("user_id")
+  action         AuditAction
+  entity         String
+  entityId       String?     @map("entity_id")
+  changes        Json?
+  ipAddress      String?     @map("ip_address")
+  createdAt      DateTime    @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, createdAt])
+  @@index([entity, entityId])
+  @@map("audit_logs")
+}

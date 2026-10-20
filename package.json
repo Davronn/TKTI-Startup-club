@@ -1,0 +1,30 @@
+{
+  "name": "startup-club-platform",
+  "version": "1.0.0",
+  "private": true,
+  "packageManager": "npm@11.16.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "test": "turbo test",
+    "start:production": "node scripts/start-production.mjs",
+    "format": "prettier --write .",
+    "db:generate": "npm run prisma:generate -w @startup-club/api",
+    "db:migrate": "npm run prisma:migrate -w @startup-club/api",
+    "db:deploy": "npm run prisma:deploy -w @startup-club/api",
+    "db:seed": "npm run prisma:seed -w @startup-club/api"
+  },
+  "devDependencies": {
+    "prettier": "3.4.2",
+    "turbo": "2.11.9",
+    "typescript": "5.7.2"
+  },
+  "engines": {
+    "node": ">=20.9"
+  }
+}

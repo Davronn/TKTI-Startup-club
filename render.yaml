@@ -1,0 +1,46 @@
+services:
+  - type: web
+    name: tkti-startup-club
+    runtime: node
+    region: frankfurt
+    plan: free
+    buildCommand: npm ci && npm run db:generate && npm run build
+    startCommand: npm run db:deploy && npm run db:seed && npm run start:production
+    healthCheckPath: /api/backend/health
+    autoDeployTrigger: commit
+    envVars:
+      - key: NODE_VERSION
+        value: 22
+      - key: NODE_ENV
+        value: production
+      - key: API_PORT
+        value: 4000
+      - key: API_INTERNAL_URL
+        value: http://127.0.0.1:4000
+      - key: ACCESS_TOKEN_TTL
+        value: 15m
+      - key: REFRESH_TOKEN_TTL_DAYS
+        value: 7
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: tkti-startup-club-db
+          property: connectionString
+      - key: SEED_ADMIN_EMAIL
+        value: admin@startupclub.uz
+      - key: SEED_ADMIN_PASSWORD
+        sync: false
+      - key: SEED_ADMIN_NAME
+        value: Tizim administratori
+      - key: SEED_ORGANIZATION_NAME
+        value: StartUp Club
+
+databases:
+  - name: tkti-startup-club-db
+    region: frankfurt
+    plan: free
+    databaseName: startup_club
+    user: startup_club
