@@ -24,7 +24,7 @@ interface ListResponse {
 }
 
 const logoColors = [
-  ['#e7f5ef', '#0e8c65'], ['#eef0fb', '#4f5fb2'], ['#fff2e3', '#bb6b12'], ['#e9f4fa', '#1679a5'],
+  ['#e8f3ff', '#0969c8'], ['#eef0fb', '#4f5fb2'], ['#fff2e3', '#bb6b12'], ['#e9f4fa', '#1679a5'],
 ];
 
 export default function StartupsPage() {

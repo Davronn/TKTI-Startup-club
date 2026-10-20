@@ -1,14 +1,13 @@
+import Image from 'next/image';
+import clubLogo from '@/img/image.png';
+
 export function Logo({ compact = false }: { compact?: boolean }) {
   return (
     <div className="brand-lockup">
-      <span className="brand-mark" aria-hidden="true">
-        <span />
-        <span />
-        <span />
-      </span>
+      <Image className="brand-emblem" src={clubLogo} alt="TKTI StartUp Club logosi" priority />
       {!compact && (
         <span className="brand-copy">
-          <strong>StartUp</strong>
+          <strong>TKTI StartUp</strong>
           <small>CLUB PLATFORM</small>
         </span>
       )}

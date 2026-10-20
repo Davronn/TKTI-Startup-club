@@ -15,6 +15,7 @@ import Link from 'next/link';
 import { apiFetch } from '@/lib/api';
 import { formatDate, initials } from '@/lib/format';
 import { Startup } from '@/lib/types';
+import { Logo } from '@/components/logo';
 import { PageLoader, StageBadge, StatusBadge } from '@/components/ui';
 
 interface DashboardData {
@@ -50,7 +51,7 @@ const activityLabels: Record<string, string> = {
 };
 
 const logoColors = [
-  ['#e7f5ef', '#0e8c65'],
+  ['#e8f3ff', '#0969c8'],
   ['#eef0fb', '#4f5fb2'],
   ['#fff2e3', '#bb6b12'],
   ['#e9f4fa', '#1679a5'],
@@ -71,8 +72,8 @@ export default function DashboardPage() {
       label: 'Jami startaplar',
       value: data.summary.total,
       icon: Building2,
-      color: '#0f8f67',
-      soft: '#e5f6ef',
+      color: '#0969c8',
+      soft: '#e8f3ff',
       trend: `+${data.summary.addedThisMonth} bu oy`,
     },
     {
@@ -103,6 +104,20 @@ export default function DashboardPage() {
 
   return (
     <>
+      <section className="card dashboard-welcome">
+        <div className="dashboard-welcome-copy">
+          <div className="dashboard-brand"><Logo /></div>
+          <span className="dashboard-eyebrow">STARTUP EKOTIZIMI</span>
+          <h2>Klub rivojini bitta markazdan boshqaring.</h2>
+          <p>Startaplar, bosqichlar va jamoa faoliyati bo‘yicha eng muhim ma’lumotlar.</p>
+        </div>
+        <div className="dashboard-welcome-summary">
+          <span>KLUB PORTFELI</span>
+          <strong>{data.summary.total}</strong>
+          <small>ta startap tizimda</small>
+        </div>
+      </section>
+
       <section className="stats-grid">
         {stats.map((stat) => (
           <article

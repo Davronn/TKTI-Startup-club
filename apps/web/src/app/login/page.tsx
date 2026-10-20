@@ -1,18 +1,18 @@
 'use client';
 
-import { ArrowRight, Eye, EyeOff, LockKeyhole, Mail, ShieldCheck } from 'lucide-react';
+import { ArrowRight, Eye, EyeOff, LockKeyhole, Mail } from 'lucide-react';
 import { FormEvent, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
+import { Logo } from '@/components/logo';
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/providers/auth-provider';
-import { Logo } from '@/components/logo';
 
 export default function LoginPage() {
   const router = useRouter();
   const { user, loading, refresh } = useAuth();
   const [email, setEmail] = useState('admin@startupclub.uz');
-  const [password, setPassword] = useState('ChangeMe123!');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -39,33 +39,18 @@ export default function LoginPage() {
 
   return (
     <main className="login-page">
-      <section className="login-visual">
-        <div className="login-grid" />
-        <div className="login-brand"><Logo /></div>
-        <div className="login-message">
-          <span className="eyebrow">STARTUP ECOSYSTEM</span>
-          <h1>G‘oyadan o‘sishgacha — hammasi bir joyda.</h1>
-          <p>Klubingizdagi startaplar rivojini tartibli boshqaring, kuzating va tezlashtiring.</p>
-          <div className="login-proof">
-            <div><ShieldCheck size={20} /><span>Xavfsiz kirish</span></div>
-            <div><span className="pulse-dot" /><span>Real vaqt monitoringi</span></div>
-          </div>
-        </div>
-        <div className="floating-card floating-card-one">
-          <span>FAOL STARTAPLAR</span><strong>24</strong><i>+12%</i>
-        </div>
-        <div className="floating-card floating-card-two">
-          <span>ENG FAOL BOSQICH</span><strong>MVP</strong><i>8 loyiha</i>
-        </div>
-      </section>
+      <div className="login-orb login-orb-one" aria-hidden="true" />
+      <div className="login-orb login-orb-two" aria-hidden="true" />
 
-      <section className="login-form-side">
+      <section className="login-panel">
+        <header className="login-form-heading">
+          <div className="login-logo"><Logo /></div>
+          <span className="login-kicker">STARTUP CLUB PLATFORM</span>
+          <h1>Tizimga kirish</h1>
+          <p>Ichki boshqaruv paneliga kirish uchun ma’lumotlaringizni kiriting.</p>
+        </header>
+
         <form className="login-form" onSubmit={onSubmit}>
-          <div className="login-form-heading">
-            <span className="mobile-login-logo"><Logo /></span>
-            <h2>Xush kelibsiz</h2>
-            <p>Ichki boshqaruv tizimiga kirish</p>
-          </div>
           <label className="form-field">
             <span>Email manzil</span>
             <div className="input-with-icon">
@@ -80,6 +65,7 @@ export default function LoginPage() {
               />
             </div>
           </label>
+
           <label className="form-field">
             <span>Parol</span>
             <div className="input-with-icon">
@@ -92,18 +78,24 @@ export default function LoginPage() {
                 autoComplete="current-password"
                 required
               />
-              <button type="button" onClick={() => setShowPassword((value) => !value)}>
+              <button
+                type="button"
+                onClick={() => setShowPassword((value) => !value)}
+                aria-label={showPassword ? 'Parolni yashirish' : 'Parolni ko‘rsatish'}
+              >
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
           </label>
+
           <button className="button button-primary login-button" disabled={submitting}>
             {submitting ? 'Tekshirilmoqda...' : 'Tizimga kirish'}
             {!submitting && <ArrowRight size={19} />}
           </button>
-          <p className="login-help">Kirishda muammo bormi? Tizim administratoriga murojaat qiling.</p>
         </form>
-        <p className="login-footer">© 2026 StartUp Club. Ichki foydalanish uchun.</p>
+
+        <p className="login-help">Kirishda muammo bo‘lsa, tizim administratoriga murojaat qiling.</p>
+        <footer className="login-footer">© 2026 StartUp Club · Ichki foydalanish uchun</footer>
       </section>
     </main>
   );
