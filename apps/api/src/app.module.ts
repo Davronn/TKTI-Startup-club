@@ -12,6 +12,7 @@ import { StagesModule } from './stages/stages.module';
 import { StartupsModule } from './startups/startups.module';
 import { UsersModule } from './users/users.module';
 import { AuditModule } from './audit/audit.module';
+import { FinanceModule } from './finance/finance.module';
 import { validateEnvironment } from './config/environment';
 
 @Module({
@@ -28,6 +29,7 @@ import { validateEnvironment } from './config/environment';
     UsersModule,
     StagesModule,
     StartupsModule,
+    FinanceModule,
     DashboardModule,
   ],
   controllers: [HealthController],

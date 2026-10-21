@@ -1,6 +1,6 @@
 # StartUp Club Platform
 
-Startap klubining ichki boshqaruv tizimi. V1 startaplarni ro‘yxatga olish, rivojlanish bosqichlarini kuzatish, Kanban pipeline, foydalanuvchi rollari, izohlar, tarix va dashboardni o‘z ichiga oladi.
+Startap klubining ichki boshqaruv tizimi. V1 startaplarni ro‘yxatga olish, rivojlanish bosqichlarini kuzatish, Kanban pipeline, moliyaviy nazorat, foydalanuvchi rollari, izohlar, tarix va dashboardni o‘z ichiga oladi.
 
 ## Texnologiyalar
 
@@ -21,6 +21,10 @@ Startap klubining ichki boshqaruv tizimi. V1 startaplarni ro‘yxatga olish, riv
 - Bosqichlar o‘zgarishining to‘liq tarixi
 - Ichki izohlar
 - Dashboard va bosqichlar kesimidagi ko‘rsatkichlar
+- Har bir startap uchun kirim, chiqim va moliyalashtirish operatsiyalari
+- Ko‘p valutali hisob, bazaviy valuta kursi, budjet, burn rate va runway
+- Investitsiya raundlari, jalb qilingan mablag‘, baholash va berilgan ulush nazorati
+- Kontragent, to‘lov usuli, chek/hujjat havolasi va moliyaviy audit tarixi
 - CSV eksport
 - Multi-tenantga tayyor `organization_id` modeli
 - Muhim amallar auditi

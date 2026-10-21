@@ -21,8 +21,9 @@ import { formatDate, initials, statusLabels } from '@/lib/format';
 import { Stage, Startup } from '@/lib/types';
 import { PageLoader, StageBadge, StatusBadge } from '@/components/ui';
 import { useAuth } from '@/providers/auth-provider';
+import { FinancePanel } from '@/components/finance-panel';
 
-type Tab = 'overview' | 'team' | 'timeline' | 'notes';
+type Tab = 'overview' | 'finance' | 'team' | 'timeline' | 'notes';
 
 export default function StartupDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -75,7 +76,7 @@ export default function StartupDetailPage() {
       <div className="detail-grid">
         <section className="card">
           <div className="tabs">
-            {([['overview', 'Umumiy'], ['team', `Jamoa (${data.members?.length || 0})`], ['timeline', 'Bosqichlar tarixi'], ['notes', `Izohlar (${data.notes?.length || 0})`]] as [Tab, string][]).map(([value, label]) => (
+            {([['overview', 'Umumiy'], ['finance', 'Moliya'], ['team', `Jamoa (${data.members?.length || 0})`], ['timeline', 'Bosqichlar tarixi'], ['notes', `Izohlar (${data.notes?.length || 0})`]] as [Tab, string][]).map(([value, label]) => (
               <button key={value} className={tab === value ? 'active' : ''} onClick={() => setTab(value)}>{label}</button>
             ))}
           </div>
@@ -100,6 +101,8 @@ export default function StartupDetailPage() {
               </div>
             </>
           )}
+
+          {tab === 'finance' && <FinancePanel startupId={id} canEdit={canEdit} canDelete={canArchive} />}
 
           {tab === 'team' && (
             data.members?.length ? <div className="team-list">{data.members.map((member, index) => (

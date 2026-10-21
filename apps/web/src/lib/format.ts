@@ -32,3 +32,17 @@ export function initials(name: string) {
     .join('')
     .toUpperCase();
 }
+
+export function formatMoney(value: number | string, currency = 'UZS', compact = false) {
+  const amount = Number(value || 0);
+  try {
+    return new Intl.NumberFormat('uz-UZ', {
+      style: 'currency',
+      currency,
+      notation: compact ? 'compact' : 'standard',
+      maximumFractionDigits: currency === 'UZS' ? 0 : 2,
+    }).format(amount);
+  } catch {
+    return `${new Intl.NumberFormat('uz-UZ', { maximumFractionDigits: 2 }).format(amount)} ${currency}`;
+  }
+}

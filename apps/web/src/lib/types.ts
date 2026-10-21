@@ -1,5 +1,12 @@
 export type Role = 'SUPER_ADMIN' | 'ADMIN' | 'MANAGER' | 'VIEWER';
 export type StartupStatus = 'ACTIVE' | 'PAUSED' | 'GRADUATED' | 'ARCHIVED';
+export type FinanceTransactionType = 'INCOME' | 'EXPENSE' | 'FUNDING';
+export type FinanceTransactionStatus = 'PLANNED' | 'COMPLETED' | 'CANCELLED';
+export type FinanceCategory =
+  | 'SALES' | 'SERVICES' | 'GRANT' | 'INVESTMENT' | 'LOAN' | 'EQUIPMENT' | 'SOFTWARE'
+  | 'MARKETING' | 'SALARY' | 'RENT' | 'OPERATIONS' | 'TAX' | 'TRAVEL' | 'OTHER';
+export type FundingRoundType = 'BOOTSTRAP' | 'GRANT' | 'PRE_SEED' | 'SEED' | 'SERIES_A' | 'SERIES_B' | 'SERIES_C' | 'OTHER';
+export type FundingRoundStatus = 'PLANNED' | 'OPEN' | 'CLOSED' | 'CANCELLED';
 
 export interface AuthUser {
   id: string;
@@ -93,4 +100,77 @@ export interface UserListItem {
   lastLoginAt?: string | null;
   createdAt: string;
   role: Role;
+}
+
+export interface FinanceProfile {
+  startupId: string;
+  baseCurrency: string;
+  openingBalance: number | string;
+  budgetAmount?: number | string | null;
+  budgetStartDate?: string | null;
+  budgetEndDate?: string | null;
+  notes?: string | null;
+}
+
+export interface FinanceTransaction {
+  id: string;
+  type: FinanceTransactionType;
+  category: FinanceCategory;
+  status: FinanceTransactionStatus;
+  title: string;
+  amount: number | string;
+  currency: string;
+  exchangeRate: number | string;
+  baseAmount: number | string;
+  counterparty?: string | null;
+  paymentMethod?: string | null;
+  reference?: string | null;
+  occurredAt: string;
+  receiptUrl?: string | null;
+  notes?: string | null;
+  fundingRoundId?: string | null;
+  fundingRound?: { id: string; name: string } | null;
+  createdBy: { id: string; fullName: string };
+  createdAt: string;
+}
+
+export interface FundingRound {
+  id: string;
+  type: FundingRoundType;
+  status: FundingRoundStatus;
+  name: string;
+  targetAmount?: number | string | null;
+  raisedAmount: number | string;
+  currency: string;
+  exchangeRate: number | string;
+  baseRaisedAmount: number | string;
+  preMoneyValuation?: number | string | null;
+  postMoneyValuation?: number | string | null;
+  equityPercent?: number | string | null;
+  investorName?: string | null;
+  openedAt?: string | null;
+  closedAt?: string | null;
+  notes?: string | null;
+}
+
+export interface FinanceOverview {
+  profile: FinanceProfile;
+  summary: {
+    baseCurrency: string;
+    openingBalance: number;
+    income: number;
+    funding: number;
+    expenses: number;
+    cashBalance: number;
+    monthlyBurn: number;
+    runwayMonths: number | null;
+    monthIncome: number;
+    monthExpense: number;
+    budgetAmount: number | null;
+    budgetSpent: number;
+    budgetRemaining: number | null;
+    expenseByCategory: { category: FinanceCategory; amount: number }[];
+  };
+  transactions: FinanceTransaction[];
+  fundingRounds: FundingRound[];
 }

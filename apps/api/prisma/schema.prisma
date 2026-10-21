@@ -32,6 +32,53 @@ enum AuditAction {
   STAGE_CHANGE
 }
 
+enum FinanceTransactionType {
+  INCOME
+  EXPENSE
+  FUNDING
+}
+
+enum FinanceTransactionStatus {
+  PLANNED
+  COMPLETED
+  CANCELLED
+}
+
+enum FinanceCategory {
+  SALES
+  SERVICES
+  GRANT
+  INVESTMENT
+  LOAN
+  EQUIPMENT
+  SOFTWARE
+  MARKETING
+  SALARY
+  RENT
+  OPERATIONS
+  TAX
+  TRAVEL
+  OTHER
+}
+
+enum FundingRoundType {
+  BOOTSTRAP
+  GRANT
+  PRE_SEED
+  SEED
+  SERIES_A
+  SERIES_B
+  SERIES_C
+  OTHER
+}
+
+enum FundingRoundStatus {
+  PLANNED
+  OPEN
+  CLOSED
+  CANCELLED
+}
+
 model Organization {
   id          String   @id @default(uuid()) @db.Uuid
   name        String
@@ -45,6 +92,8 @@ model Organization {
   startups    Startup[]
   tags        Tag[]
   auditLogs   AuditLog[]
+  financeTransactions StartupFinanceTransaction[]
+  fundingRounds StartupFundingRound[]
 
   @@map("organizations")
 }
@@ -69,6 +118,11 @@ model User {
   sessions       UserSession[]
   auditLogs      AuditLog[]
   uploadedFiles  StartupFile[]
+  financeProfilesUpdated StartupFinanceProfile[]     @relation("FinanceProfileUpdatedBy")
+  financeTransactionsCreated StartupFinanceTransaction[] @relation("FinanceTransactionCreatedBy")
+  financeTransactionsUpdated StartupFinanceTransaction[] @relation("FinanceTransactionUpdatedBy")
+  fundingRoundsCreated StartupFundingRound[]          @relation("FundingRoundCreatedBy")
+  fundingRoundsUpdated StartupFundingRound[]          @relation("FundingRoundUpdatedBy")
 
   @@map("users")
 }
@@ -149,6 +203,9 @@ model Startup {
   notes        StartupNote[]
   files        StartupFile[]
   tags         StartupTag[]
+  financeProfile StartupFinanceProfile?
+  financeTransactions StartupFinanceTransaction[]
+  fundingRounds StartupFundingRound[]
 
   @@unique([organizationId, slug])
   @@index([organizationId, status])
@@ -224,6 +281,95 @@ model StartupFile {
 
   @@index([startupId])
   @@map("startup_files")
+}
+
+model StartupFinanceProfile {
+  startupId       String   @id @db.Uuid @map("startup_id")
+  baseCurrency    String   @default("UZS") @db.VarChar(3) @map("base_currency")
+  openingBalance  Decimal  @default(0) @db.Decimal(20, 2) @map("opening_balance")
+  budgetAmount    Decimal? @db.Decimal(20, 2) @map("budget_amount")
+  budgetStartDate DateTime? @db.Date @map("budget_start_date")
+  budgetEndDate   DateTime? @db.Date @map("budget_end_date")
+  notes           String?
+  updatedById     String   @db.Uuid @map("updated_by_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  startup   Startup @relation(fields: [startupId], references: [id], onDelete: Cascade)
+  updatedBy User    @relation("FinanceProfileUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+
+  @@map("startup_finance_profiles")
+}
+
+model StartupFinanceTransaction {
+  id              String                   @id @default(uuid()) @db.Uuid
+  organizationId  String                   @db.Uuid @map("organization_id")
+  startupId       String                   @db.Uuid @map("startup_id")
+  fundingRoundId  String?                  @db.Uuid @map("funding_round_id")
+  type            FinanceTransactionType
+  category        FinanceCategory
+  status          FinanceTransactionStatus @default(COMPLETED)
+  title           String
+  amount          Decimal                  @db.Decimal(20, 2)
+  currency        String                   @default("UZS") @db.VarChar(3)
+  exchangeRate    Decimal                  @default(1) @db.Decimal(20, 6) @map("exchange_rate")
+  baseAmount      Decimal                  @db.Decimal(20, 2) @map("base_amount")
+  counterparty    String?
+  paymentMethod   String?                  @map("payment_method")
+  reference       String?
+  occurredAt      DateTime                 @db.Date @map("occurred_at")
+  receiptUrl      String?                  @map("receipt_url")
+  notes           String?
+  createdById     String                   @db.Uuid @map("created_by_id")
+  updatedById     String                   @db.Uuid @map("updated_by_id")
+  createdAt       DateTime                 @default(now()) @map("created_at")
+  updatedAt       DateTime                 @updatedAt @map("updated_at")
+
+  organization Organization         @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  startup      Startup              @relation(fields: [startupId], references: [id], onDelete: Cascade)
+  fundingRound StartupFundingRound? @relation(fields: [fundingRoundId], references: [id], onDelete: SetNull)
+  createdBy    User                 @relation("FinanceTransactionCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy    User                 @relation("FinanceTransactionUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, startupId, occurredAt])
+  @@index([startupId, type, status])
+  @@index([fundingRoundId])
+  @@map("startup_finance_transactions")
+}
+
+model StartupFundingRound {
+  id                    String             @id @default(uuid()) @db.Uuid
+  organizationId        String             @db.Uuid @map("organization_id")
+  startupId             String             @db.Uuid @map("startup_id")
+  type                  FundingRoundType
+  status                FundingRoundStatus @default(PLANNED)
+  name                  String
+  targetAmount          Decimal?           @db.Decimal(20, 2) @map("target_amount")
+  raisedAmount          Decimal            @default(0) @db.Decimal(20, 2) @map("raised_amount")
+  currency              String             @default("UZS") @db.VarChar(3)
+  exchangeRate          Decimal            @default(1) @db.Decimal(20, 6) @map("exchange_rate")
+  baseRaisedAmount      Decimal            @default(0) @db.Decimal(20, 2) @map("base_raised_amount")
+  preMoneyValuation     Decimal?           @db.Decimal(20, 2) @map("pre_money_valuation")
+  postMoneyValuation    Decimal?           @db.Decimal(20, 2) @map("post_money_valuation")
+  equityPercent         Decimal?           @db.Decimal(7, 4) @map("equity_percent")
+  investorName          String?            @map("investor_name")
+  openedAt              DateTime?          @db.Date @map("opened_at")
+  closedAt              DateTime?          @db.Date @map("closed_at")
+  notes                 String?
+  createdById           String             @db.Uuid @map("created_by_id")
+  updatedById           String             @db.Uuid @map("updated_by_id")
+  createdAt             DateTime           @default(now()) @map("created_at")
+  updatedAt             DateTime           @updatedAt @map("updated_at")
+
+  organization Organization                @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  startup      Startup                     @relation(fields: [startupId], references: [id], onDelete: Cascade)
+  transactions StartupFinanceTransaction[]
+  createdBy    User                        @relation("FundingRoundCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy    User                        @relation("FundingRoundUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, startupId, status])
+  @@index([startupId, createdAt])
+  @@map("startup_funding_rounds")
 }
 
 model Tag {
