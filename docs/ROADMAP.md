@@ -8,13 +8,16 @@
 - Stage history
 - Dashboard
 - Jamoa, izohlar va kurator
+- Milestone/vazifa tracking va dashboard ogohlantirishlari
+- Professional moliya: kirim/chiqim, budjet, burn rate, runway va investitsiya raundlari
 - CSV eksport
-- Audit log
+- Audit log, arxiv va tiklash
+- CSRF, sessiya revokatsiyasi, xavfsizlik headerlari va parol boshqaruvi
 
 ## V1.1
 
 - S3/MinIO orqali haqiqiy fayl upload
-- Parolni almashtirish va email orqali tiklash
+- Email orqali parol tiklash
 - Notification markazi
 - Excel/PDF hisobotlar
 - Saved filters va kengaytirilgan qidiruv
@@ -24,7 +27,7 @@
 
 - Mentorlar moduli
 - Uchrashuvlar va vazifalar
-- KPI va milestone tracking
+- Mentor/startap KPI shablonlari va OKR
 - Haftalik avtomatik hisobot
 - Redis/BullMQ background jobs
 

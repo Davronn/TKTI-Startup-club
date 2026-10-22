@@ -1,14 +1,18 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { hash, verify } from '@node-rs/argon2';
 import { AuditAction } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
-import { AccessTokenPayload, RefreshTokenPayload } from './auth.types';
+import { AccessTokenPayload, AuthUser, RefreshTokenPayload } from './auth.types';
+import { ChangePasswordDto } from './dto/change-password.dto';
+import { hashPassword } from './password';
 
 @Injectable()
 export class AuthService {
+  private readonly dummyPasswordHash = hashPassword('timing-check-only-password');
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
@@ -20,7 +24,8 @@ export class AuthService {
       where: { email: dto.email.toLowerCase().trim() },
       include: { memberships: { include: { organization: true }, take: 1 } },
     });
-    if (!user || !user.isActive || !(await verify(user.passwordHash, dto.password))) {
+    const passwordMatches = await verify(user?.passwordHash ?? await this.dummyPasswordHash, dto.password);
+    if (!user || !user.isActive || !passwordMatches) {
       throw new UnauthorizedException('Email yoki parol noto‘g‘ri');
     }
     const membership = user.memberships[0];
@@ -30,8 +35,8 @@ export class AuthService {
       data: {
         userId: user.id,
         refreshTokenHash: 'pending',
-        userAgent,
-        ipAddress,
+        userAgent: userAgent?.slice(0, 500),
+        ipAddress: ipAddress?.slice(0, 64),
         expiresAt: new Date(Date.now() + this.refreshDays * 86_400_000),
       },
     });
@@ -49,7 +54,7 @@ export class AuthService {
           action: AuditAction.LOGIN,
           entity: 'User',
           entityId: user.id,
-          ipAddress,
+          ipAddress: ipAddress?.slice(0, 64),
         },
       }),
     ]);
@@ -75,7 +80,15 @@ export class AuthService {
     const session = await this.prisma.userSession.findUnique({
       where: { id: payload.sessionId },
       include: {
-        user: { include: { memberships: { include: { organization: true }, take: 1 } } },
+        user: {
+          include: {
+            memberships: {
+              where: { organizationId: payload.organizationId },
+              include: { organization: true },
+              take: 1,
+            },
+          },
+        },
       },
     });
     if (
@@ -101,17 +114,30 @@ export class AuthService {
     };
   }
 
-  async logout(refreshToken?: string) {
+  async logout(refreshToken?: string, ipAddress?: string) {
     if (!refreshToken) return;
     try {
       const payload = await this.jwt.verifyAsync<RefreshTokenPayload>(refreshToken, {
         secret: this.config.getOrThrow('JWT_REFRESH_SECRET'),
         ignoreExpiration: true,
       });
-      await this.prisma.userSession.updateMany({
+      if (payload.type !== 'refresh') return;
+      const revoked = await this.prisma.userSession.updateMany({
         where: { id: payload.sessionId, userId: payload.sub, revokedAt: null },
         data: { revokedAt: new Date() },
       });
+      if (revoked.count) {
+        await this.prisma.auditLog.create({
+          data: {
+            organizationId: payload.organizationId,
+            userId: payload.sub,
+            action: AuditAction.LOGOUT,
+            entity: 'UserSession',
+            entityId: payload.sessionId,
+            ipAddress: ipAddress?.slice(0, 64),
+          },
+        }).catch(() => undefined);
+      }
     } catch {
       return;
     }
@@ -129,16 +155,82 @@ export class AuthService {
     };
   }
 
+  async changePassword(dto: ChangePasswordDto, user: AuthUser) {
+    const account = await this.prisma.user.findUnique({ where: { id: user.userId } });
+    if (!account || !(await verify(account.passwordHash, dto.currentPassword))) {
+      throw new UnauthorizedException('Joriy parol noto‘g‘ri');
+    }
+    if (await verify(account.passwordHash, dto.newPassword)) {
+      throw new UnauthorizedException('Yangi parol joriy paroldan farq qilishi kerak');
+    }
+    const passwordHash = await hashPassword(dto.newPassword);
+    await this.prisma.$transaction([
+      this.prisma.user.update({ where: { id: user.userId }, data: { passwordHash } }),
+      this.prisma.userSession.updateMany({
+        where: { userId: user.userId, id: { not: user.sessionId }, revokedAt: null },
+        data: { revokedAt: new Date() },
+      }),
+      this.prisma.auditLog.create({
+        data: {
+          organizationId: user.organizationId,
+          userId: user.userId,
+          action: AuditAction.UPDATE,
+          entity: 'UserPassword',
+          entityId: user.userId,
+          changes: { otherSessionsRevoked: true },
+        },
+      }),
+    ]);
+    return { success: true };
+  }
+
+  async sessions(user: AuthUser) {
+    const sessions = await this.prisma.userSession.findMany({
+      where: { userId: user.userId, revokedAt: null, expiresAt: { gt: new Date() } },
+      orderBy: { createdAt: 'desc' },
+      select: { id: true, userAgent: true, ipAddress: true, createdAt: true, expiresAt: true },
+    });
+    return sessions.map((session) => ({ ...session, isCurrent: session.id === user.sessionId }));
+  }
+
+  async revokeSession(sessionId: string, user: AuthUser) {
+    if (sessionId === user.sessionId) {
+      throw new ConflictException('Joriy sessiya uchun yon menyudagi Chiqish tugmasidan foydalaning');
+    }
+    const result = await this.prisma.userSession.updateMany({
+      where: { id: sessionId, userId: user.userId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+    if (!result.count) throw new NotFoundException('Faol sessiya topilmadi');
+    await this.prisma.auditLog.create({
+      data: {
+        organizationId: user.organizationId,
+        userId: user.userId,
+        action: AuditAction.LOGOUT,
+        entity: 'UserSession',
+        entityId: sessionId,
+        changes: { revokedRemotely: true },
+      },
+    });
+    return { success: true };
+  }
+
   private async createTokens(user: any, membership: any, sessionId: string) {
     const accessPayload: AccessTokenPayload = {
       sub: user.id,
+      sessionId,
       organizationId: membership.organizationId,
       role: membership.role,
       email: user.email,
       fullName: user.fullName,
       type: 'access',
     };
-    const refreshPayload: RefreshTokenPayload = { sub: user.id, sessionId, type: 'refresh' };
+    const refreshPayload: RefreshTokenPayload = {
+      sub: user.id,
+      sessionId,
+      organizationId: membership.organizationId,
+      type: 'refresh',
+    };
     const [accessToken, refreshToken] = await Promise.all([
       this.jwt.signAsync(accessPayload, {
         secret: this.config.getOrThrow('JWT_ACCESS_SECRET'),

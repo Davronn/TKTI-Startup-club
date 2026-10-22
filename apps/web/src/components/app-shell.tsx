@@ -4,11 +4,13 @@ import {
   BarChart3,
   Building2,
   ChevronRight,
+  ClipboardList,
   KanbanSquare,
   LogOut,
   Menu,
   Plus,
   Settings,
+  ShieldCheck,
   Users,
   X,
 } from 'lucide-react';
@@ -24,7 +26,9 @@ const navigation = [
   { href: '/dashboard', label: 'Boshqaruv paneli', icon: BarChart3 },
   { href: '/startups', label: 'Startaplar', icon: Building2 },
   { href: '/pipeline', label: 'Pipeline', icon: KanbanSquare },
+  { href: '/settings/security', label: 'Xavfsizlik', icon: ShieldCheck },
   { href: '/users', label: 'Foydalanuvchilar', icon: Users, adminOnly: true },
+  { href: '/audit', label: 'Audit jurnali', icon: ClipboardList, adminOnly: true },
   { href: '/settings/stages', label: 'Sozlamalar', icon: Settings, adminOnly: true },
 ];
 
@@ -33,7 +37,9 @@ const titleMap: Record<string, { title: string; subtitle: string }> = {
   '/startups': { title: 'Startaplar', subtitle: 'Klubdagi barcha loyihalarni boshqaring' },
   '/pipeline': { title: 'Pipeline', subtitle: 'Startaplar rivojlanish bosqichlari' },
   '/users': { title: 'Foydalanuvchilar', subtitle: 'Jamoa a’zolari va ruxsatlarni boshqaring' },
+  '/audit': { title: 'Audit jurnali', subtitle: 'Muhim amallar va xavfsizlik hodisalari' },
   '/settings/stages': { title: 'Bosqichlar', subtitle: 'Pipeline bosqichlarini sozlang' },
+  '/settings/security': { title: 'Xavfsizlik', subtitle: 'Parol va faol sessiyalar himoyasi' },
 };
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -63,11 +69,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="app-layout">
-      {mobileOpen && <button className="sidebar-overlay" onClick={() => setMobileOpen(false)} />}
+      {mobileOpen && <button className="sidebar-overlay" onClick={() => setMobileOpen(false)} aria-label="Yon menyuni yopish" />}
       <aside className={`sidebar ${mobileOpen ? 'sidebar-open' : ''}`}>
         <div className="sidebar-brand">
           <Logo />
-          <button className="icon-button sidebar-close" onClick={() => setMobileOpen(false)}>
+          <button className="icon-button sidebar-close" onClick={() => setMobileOpen(false)} aria-label="Yon menyuni yopish">
             <X size={20} />
           </button>
         </div>
@@ -105,7 +111,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <strong>{user.fullName}</strong>
             <span>{roleLabels[user.role]}</span>
           </div>
-          <button className="icon-button" onClick={() => void logout()} title="Chiqish">
+          <button className="icon-button" onClick={() => void logout()} title="Chiqish" aria-label="Tizimdan chiqish">
             <LogOut size={18} />
           </button>
         </div>
@@ -114,7 +120,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <div className="app-main">
         <header className="topbar">
           <div className="topbar-title">
-            <button className="icon-button mobile-menu" onClick={() => setMobileOpen(true)}>
+            <button className="icon-button mobile-menu" onClick={() => setMobileOpen(true)} aria-label="Yon menyuni ochish">
               <Menu size={22} />
             </button>
             <div>

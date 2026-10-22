@@ -13,6 +13,7 @@ import {
   IsOptional,
   IsString,
   IsUrl,
+  IsUUID,
   Matches,
   Max,
   MaxLength,
@@ -80,17 +81,17 @@ export class CreateFinanceTransactionDto {
   @IsOptional()
   @IsString()
   @MaxLength(160)
-  counterparty?: string;
+  counterparty?: string | null;
 
   @IsOptional()
   @IsString()
   @MaxLength(80)
-  paymentMethod?: string;
+  paymentMethod?: string | null;
 
   @IsOptional()
   @IsString()
   @MaxLength(100)
-  reference?: string;
+  reference?: string | null;
 
   @IsDateString()
   occurredAt!: string;
@@ -98,16 +99,16 @@ export class CreateFinanceTransactionDto {
   @IsOptional()
   @IsUrl({ require_tld: false })
   @MaxLength(500)
-  receiptUrl?: string;
+  receiptUrl?: string | null;
 
   @IsOptional()
   @IsString()
   @MaxLength(2000)
-  notes?: string;
+  notes?: string | null;
 
   @IsOptional()
-  @IsString()
-  fundingRoundId?: string;
+  @IsUUID()
+  fundingRoundId?: string | null;
 }
 
 export class UpdateFinanceTransactionDto extends PartialType(CreateFinanceTransactionDto) {}
@@ -127,7 +128,7 @@ export class CreateFundingRoundDto {
   @IsOptional()
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
-  targetAmount?: number;
+  targetAmount?: number | null;
 
   @IsOptional()
   @IsNumber({ maxDecimalPlaces: 2 })
@@ -146,36 +147,36 @@ export class CreateFundingRoundDto {
   @IsOptional()
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
-  preMoneyValuation?: number;
+  preMoneyValuation?: number | null;
 
   @IsOptional()
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
-  postMoneyValuation?: number;
+  postMoneyValuation?: number | null;
 
   @IsOptional()
   @IsNumber({ maxDecimalPlaces: 4 })
   @Min(0)
   @Max(100)
-  equityPercent?: number;
+  equityPercent?: number | null;
 
   @IsOptional()
   @IsString()
   @MaxLength(160)
-  investorName?: string;
+  investorName?: string | null;
 
   @IsOptional()
   @IsDateString()
-  openedAt?: string;
+  openedAt?: string | null;
 
   @IsOptional()
   @IsDateString()
-  closedAt?: string;
+  closedAt?: string | null;
 
   @IsOptional()
   @IsString()
   @MaxLength(2000)
-  notes?: string;
+  notes?: string | null;
 }
 
 export class UpdateFundingRoundDto extends PartialType(CreateFundingRoundDto) {}

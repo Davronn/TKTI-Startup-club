@@ -1,11 +1,12 @@
 import { ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { hash } from '@node-rs/argon2';
 import { AuditAction, OrganizationRole, Prisma } from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
 import { AuthUser } from '../auth/auth.types';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
+import { hashPassword } from '../auth/password';
 
 @Injectable()
 export class UsersService {
@@ -40,7 +41,7 @@ export class UsersService {
     try {
       const user = await this.prisma.$transaction(async (tx) => {
         const created = await tx.user.create({
-          data: { email, fullName: dto.fullName.trim(), passwordHash: await hash(dto.password) },
+          data: { email, fullName: dto.fullName.trim(), passwordHash: await hashPassword(dto.password) },
         });
         await tx.organizationMember.create({
           data: {
@@ -85,16 +86,22 @@ export class UsersService {
     if (id === current.userId && dto.role && dto.role !== current.role) {
       throw new ConflictException('O‘z rolingizni o‘zgartira olmaysiz');
     }
-    await this.prisma.$transaction([
-      this.prisma.user.update({
+    await this.prisma.$transaction(async (tx) => {
+      await tx.user.update({
         where: { id },
-        data: { fullName: dto.fullName, isActive: dto.isActive },
-      }),
-      this.prisma.organizationMember.update({
+        data: { fullName: dto.fullName?.trim(), isActive: dto.isActive },
+      });
+      await tx.organizationMember.update({
         where: { id: membership.id },
         data: { role: dto.role },
-      }),
-    ]);
+      });
+      if (dto.isActive === false) {
+        await tx.userSession.updateMany({
+          where: { userId: id, revokedAt: null },
+          data: { revokedAt: new Date() },
+        });
+      }
+    });
     await this.audit.log({
       organizationId: current.organizationId,
       userId: current.userId,
@@ -102,6 +109,33 @@ export class UsersService {
       entity: 'User',
       entityId: id,
       changes: dto as any,
+    });
+    return { success: true };
+  }
+
+  async resetPassword(id: string, dto: ResetPasswordDto, current: AuthUser) {
+    const membership = await this.prisma.organizationMember.findUnique({
+      where: { organizationId_userId: { organizationId: current.organizationId, userId: id } },
+    });
+    if (!membership) throw new NotFoundException('Foydalanuvchi topilmadi');
+    if (membership.role === OrganizationRole.SUPER_ADMIN && current.role !== OrganizationRole.SUPER_ADMIN) {
+      throw new ForbiddenException('Super admin parolini faqat super admin almashtira oladi');
+    }
+    const passwordHash = await hashPassword(dto.password);
+    await this.prisma.$transaction([
+      this.prisma.user.update({ where: { id }, data: { passwordHash } }),
+      this.prisma.userSession.updateMany({
+        where: { userId: id, revokedAt: null },
+        data: { revokedAt: new Date() },
+      }),
+    ]);
+    await this.audit.log({
+      organizationId: current.organizationId,
+      userId: current.userId,
+      action: AuditAction.UPDATE,
+      entity: 'UserPassword',
+      entityId: id,
+      changes: { resetByAdministrator: true, sessionsRevoked: true },
     });
     return { success: true };
   }

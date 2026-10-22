@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { hash } from '@node-rs/argon2';
+import { Algorithm, hash } from '@node-rs/argon2';
 import { OrganizationRole, PrismaClient, StartupStatus } from '@prisma/client';
 
 const prisma = new PrismaClient();
@@ -27,13 +27,26 @@ async function main() {
   });
 
   const email = (process.env.SEED_ADMIN_EMAIL || 'admin@startupclub.uz').toLowerCase();
+  const seedPassword = process.env.SEED_ADMIN_PASSWORD || 'ChangeMe123!';
+  if (process.env.NODE_ENV === 'production' && (!process.env.SEED_ADMIN_PASSWORD || seedPassword === 'ChangeMe123!')) {
+    throw new Error('Production uchun SEED_ADMIN_PASSWORD majburiy va standart qiymatdan farqli bo‘lishi kerak');
+  }
+  if (seedPassword.length < 12) {
+    throw new Error('SEED_ADMIN_PASSWORD kamida 12 belgidan iborat bo‘lishi kerak');
+  }
   const admin = await prisma.user.upsert({
     where: { email },
     update: { fullName: process.env.SEED_ADMIN_NAME || 'Tizim administratori' },
     create: {
       email,
       fullName: process.env.SEED_ADMIN_NAME || 'Tizim administratori',
-      passwordHash: await hash(process.env.SEED_ADMIN_PASSWORD || 'ChangeMe123!'),
+      passwordHash: await hash(seedPassword, {
+        algorithm: Algorithm.Argon2id,
+        memoryCost: 19_456,
+        timeCost: 2,
+        parallelism: 1,
+        outputLen: 32,
+      }),
     },
   });
 

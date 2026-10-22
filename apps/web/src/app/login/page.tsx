@@ -11,7 +11,7 @@ import { useAuth } from '@/providers/auth-provider';
 export default function LoginPage() {
   const router = useRouter();
   const { user, loading, refresh } = useAuth();
-  const [email, setEmail] = useState('admin@startupclub.uz');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);

@@ -9,6 +9,7 @@ import {
   MapPin,
   Pencil,
   Phone,
+  RotateCcw,
   Send,
   Users,
 } from 'lucide-react';
@@ -22,8 +23,9 @@ import { Stage, Startup } from '@/lib/types';
 import { PageLoader, StageBadge, StatusBadge } from '@/components/ui';
 import { useAuth } from '@/providers/auth-provider';
 import { FinancePanel } from '@/components/finance-panel';
+import { MilestonePanel } from '@/components/milestone-panel';
 
-type Tab = 'overview' | 'finance' | 'team' | 'timeline' | 'notes';
+type Tab = 'overview' | 'finance' | 'milestones' | 'team' | 'timeline' | 'notes';
 
 export default function StartupDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -50,9 +52,14 @@ export default function StartupDetailPage() {
     onSuccess: () => { toast.success('Startap arxivlandi'); router.push('/startups'); },
     onError: (error) => toast.error(error instanceof Error ? error.message : 'Arxivlab bo‘lmadi'),
   });
+  const restoreMutation = useMutation({
+    mutationFn: () => apiFetch(`/startups/${id}/restore`, { method: 'POST' }),
+    onSuccess: () => { toast.success('Startap qayta faollashtirildi'); void queryClient.invalidateQueries({ queryKey: ['startup', id] }); },
+    onError: (error) => toast.error(error instanceof Error ? error.message : 'Startapni tiklab bo‘lmadi'),
+  });
 
   if (isLoading || !data) return <PageLoader />;
-  const canEdit = user?.role !== 'VIEWER';
+  const canEdit = user?.role !== 'VIEWER' && data.status !== 'ARCHIVED';
   const canArchive = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN';
 
   return (
@@ -69,6 +76,9 @@ export default function StartupDetailPage() {
           {canArchive && data.status !== 'ARCHIVED' && (
             <button className="button button-danger" onClick={() => window.confirm('Startapni arxivlamoqchimisiz?') && archiveMutation.mutate()}><Archive size={16} /> Arxivlash</button>
           )}
+          {canArchive && data.status === 'ARCHIVED' && (
+            <button className="button button-secondary" disabled={restoreMutation.isPending} onClick={() => restoreMutation.mutate()}><RotateCcw size={16} /> Tiklash</button>
+          )}
           {canEdit && <Link href={`/startups/${id}/edit`} className="button button-primary"><Pencil size={16} /> Tahrirlash</Link>}
         </div>
       </div>
@@ -76,7 +86,7 @@ export default function StartupDetailPage() {
       <div className="detail-grid">
         <section className="card">
           <div className="tabs">
-            {([['overview', 'Umumiy'], ['finance', 'Moliya'], ['team', `Jamoa (${data.members?.length || 0})`], ['timeline', 'Bosqichlar tarixi'], ['notes', `Izohlar (${data.notes?.length || 0})`]] as [Tab, string][]).map(([value, label]) => (
+            {([['overview', 'Umumiy'], ['finance', 'Moliya'], ['milestones', 'Vazifalar'], ['team', `Jamoa (${data.members?.length || 0})`], ['timeline', 'Bosqichlar tarixi'], ['notes', `Izohlar (${data.notes?.length || 0})`]] as [Tab, string][]).map(([value, label]) => (
               <button key={value} className={tab === value ? 'active' : ''} onClick={() => setTab(value)}>{label}</button>
             ))}
           </div>
@@ -103,6 +113,7 @@ export default function StartupDetailPage() {
           )}
 
           {tab === 'finance' && <FinancePanel startupId={id} canEdit={canEdit} canDelete={canArchive} />}
+          {tab === 'milestones' && <MilestonePanel startupId={id} canEdit={canEdit} canDelete={canArchive} />}
 
           {tab === 'team' && (
             data.members?.length ? <div className="team-list">{data.members.map((member, index) => (

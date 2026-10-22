@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { StartupStatus } from '@prisma/client';
+import { MilestoneStatus, StartupStatus } from '@prisma/client';
 import { AuthUser } from '../auth/auth.types';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -12,8 +12,12 @@ export class DashboardService {
     const monthStart = new Date();
     monthStart.setDate(1);
     monthStart.setHours(0, 0, 0, 0);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const weekEnd = new Date(today);
+    weekEnd.setDate(weekEnd.getDate() + 7);
 
-    const [total, statuses, stages, recentStartups, recentActivity, addedThisMonth] =
+    const [total, statuses, stages, recentStartups, recentActivity, addedThisMonth, overdueMilestones, dueSoonCount] =
       await Promise.all([
         this.prisma.startup.count({
           where: { organizationId, status: { not: StartupStatus.ARCHIVED } },
@@ -50,6 +54,28 @@ export class DashboardService {
         this.prisma.startup.count({
           where: { organizationId, createdAt: { gte: monthStart } },
         }),
+        this.prisma.startupMilestone.findMany({
+          where: {
+            organizationId,
+            dueDate: { lt: today },
+            status: { notIn: [MilestoneStatus.COMPLETED, MilestoneStatus.CANCELLED] },
+            startup: { status: { not: StartupStatus.ARCHIVED } },
+          },
+          orderBy: { dueDate: 'asc' },
+          take: 5,
+          include: {
+            startup: { select: { id: true, name: true } },
+            assignee: { select: { id: true, fullName: true } },
+          },
+        }),
+        this.prisma.startupMilestone.count({
+          where: {
+            organizationId,
+            dueDate: { gte: today, lte: weekEnd },
+            status: { notIn: [MilestoneStatus.COMPLETED, MilestoneStatus.CANCELLED] },
+            startup: { status: { not: StartupStatus.ARCHIVED } },
+          },
+        }),
       ]);
 
     const statusCounts = Object.fromEntries(statuses.map((item) => [item.status, item._count._all]));
@@ -71,6 +97,7 @@ export class DashboardService {
       })),
       recentStartups,
       recentActivity,
+      attention: { overdueMilestones, dueSoonCount },
     };
   }
 }

@@ -2,6 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import {
+  AlertTriangle,
   ArrowRight,
   BarChart3,
   Building2,
@@ -38,6 +39,16 @@ interface DashboardData {
     createdAt: string;
     user?: { id: string; fullName: string } | null;
   }[];
+  attention: {
+    dueSoonCount: number;
+    overdueMilestones: {
+      id: string;
+      title: string;
+      dueDate: string;
+      startup: { id: string; name: string };
+      assignee?: { id: string; fullName: string } | null;
+    }[];
+  };
 }
 
 const activityLabels: Record<string, string> = {
@@ -48,6 +59,7 @@ const activityLabels: Record<string, string> = {
   STAGE_CHANGE: 'startap bosqichini o‘zgartirdi',
   LOGIN: 'tizimga kirdi',
   LOGOUT: 'tizimdan chiqdi',
+  DELETE: 'ma’lumotni o‘chirdi',
 };
 
 const logoColors = [
@@ -137,6 +149,21 @@ export default function DashboardPage() {
 
       <section className="dashboard-grid">
         <div className="dashboard-column">
+          <article className="card">
+            <div className="card-header">
+              <div><h2>Nazorat talab qiladigan vazifalar</h2><p>Keyingi 7 kunda {data.attention.dueSoonCount} ta muddat bor</p></div>
+            </div>
+            <div className="card-body attention-list">
+              {data.attention.overdueMilestones.length ? data.attention.overdueMilestones.map((item) => (
+                <Link href={`/startups/${item.startup.id}`} className="attention-row" key={item.id}>
+                  <span className="attention-icon"><AlertTriangle size={14} /></span>
+                  <span><strong>{item.title}</strong><small>{item.startup.name} · {formatDate(item.dueDate)}</small></span>
+                  <ArrowRight size={13} />
+                </Link>
+              )) : <p className="muted">Muddati o‘tgan vazifa yo‘q.</p>}
+            </div>
+          </article>
+
           <article className="card">
             <div className="card-header">
               <div><h2>Bosqichlar bo‘yicha taqsimot</h2><p>Startaplarning joriy rivojlanish holati</p></div>

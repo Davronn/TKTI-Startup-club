@@ -150,7 +150,7 @@ export function StartupForm({ initial }: { initial?: Startup }) {
               <label className="form-field">
                 <span>Operatsion holat</span>
                 <select {...register('status')}>
-                  <option value="ACTIVE">Faol</option><option value="PAUSED">To‘xtatilgan</option><option value="GRADUATED">Bitirgan</option><option value="ARCHIVED">Arxivlangan</option>
+                  <option value="ACTIVE">Faol</option><option value="PAUSED">To‘xtatilgan</option><option value="GRADUATED">Bitirgan</option>
                 </select>
               </label>
             )}

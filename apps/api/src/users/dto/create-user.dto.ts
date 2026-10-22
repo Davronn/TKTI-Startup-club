@@ -1,5 +1,5 @@
 import { OrganizationRole } from '@prisma/client';
-import { IsEmail, IsEnum, IsOptional, IsString, MinLength } from 'class-validator';
+import { IsEmail, IsEnum, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 
 export class CreateUserDto {
   @IsEmail()
@@ -7,10 +7,12 @@ export class CreateUserDto {
 
   @IsString()
   @MinLength(2)
+  @MaxLength(120)
   fullName: string;
 
   @IsString()
-  @MinLength(8)
+  @MinLength(12)
+  @MaxLength(128)
   password: string;
 
   @IsOptional()

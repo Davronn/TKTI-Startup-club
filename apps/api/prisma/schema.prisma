@@ -79,6 +79,21 @@ enum FundingRoundStatus {
   CANCELLED
 }
 
+enum MilestoneStatus {
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+  BLOCKED
+  CANCELLED
+}
+
+enum MilestonePriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
 model Organization {
   id          String   @id @default(uuid()) @db.Uuid
   name        String
@@ -94,6 +109,7 @@ model Organization {
   auditLogs   AuditLog[]
   financeTransactions StartupFinanceTransaction[]
   fundingRounds StartupFundingRound[]
+  milestones StartupMilestone[]
 
   @@map("organizations")
 }
@@ -123,6 +139,9 @@ model User {
   financeTransactionsUpdated StartupFinanceTransaction[] @relation("FinanceTransactionUpdatedBy")
   fundingRoundsCreated StartupFundingRound[]          @relation("FundingRoundCreatedBy")
   fundingRoundsUpdated StartupFundingRound[]          @relation("FundingRoundUpdatedBy")
+  assignedMilestones StartupMilestone[]               @relation("MilestoneAssignee")
+  createdMilestones StartupMilestone[]                @relation("MilestoneCreatedBy")
+  updatedMilestones StartupMilestone[]                @relation("MilestoneUpdatedBy")
 
   @@map("users")
 }
@@ -206,6 +225,7 @@ model Startup {
   financeProfile StartupFinanceProfile?
   financeTransactions StartupFinanceTransaction[]
   fundingRounds StartupFundingRound[]
+  milestones StartupMilestone[]
 
   @@unique([organizationId, slug])
   @@index([organizationId, status])
@@ -370,6 +390,34 @@ model StartupFundingRound {
   @@index([organizationId, startupId, status])
   @@index([startupId, createdAt])
   @@map("startup_funding_rounds")
+}
+
+model StartupMilestone {
+  id             String            @id @default(uuid()) @db.Uuid
+  organizationId String            @db.Uuid @map("organization_id")
+  startupId      String            @db.Uuid @map("startup_id")
+  title          String
+  description    String?
+  status         MilestoneStatus   @default(PLANNED)
+  priority       MilestonePriority @default(MEDIUM)
+  dueDate        DateTime?         @db.Date @map("due_date")
+  completedAt    DateTime?         @map("completed_at")
+  assigneeId     String?           @db.Uuid @map("assignee_id")
+  createdById    String            @db.Uuid @map("created_by_id")
+  updatedById    String            @db.Uuid @map("updated_by_id")
+  createdAt      DateTime          @default(now()) @map("created_at")
+  updatedAt      DateTime          @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  startup      Startup      @relation(fields: [startupId], references: [id], onDelete: Cascade)
+  assignee     User?        @relation("MilestoneAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  createdBy    User         @relation("MilestoneCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy    User         @relation("MilestoneUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, startupId, status])
+  @@index([startupId, dueDate])
+  @@index([assigneeId, status])
+  @@map("startup_milestones")
 }
 
 model Tag {

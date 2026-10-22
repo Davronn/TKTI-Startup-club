@@ -12,8 +12,9 @@ Next.js web
 NestJS modular monolith
   ├── Auth / RBAC
   ├── Users / Organizations
-  ├── Startups / Stages / Notes
-  ├── Dashboard
+  ├── Startups / Stages / Notes / Milestones
+  ├── Finance / Funding rounds
+  ├── Dashboard / Attention alerts
   └── Audit
   │
   ▼
@@ -36,16 +37,21 @@ Hozir bitta klub ishlatilsa ham, biznes jadvallarida `organization_id` mavjud. J
 - `startup_stage_history` har bir o‘tishni immutable tarix sifatida yozadi.
 - `status` operatsion holatni bildiradi: faol, to‘xtatilgan, bitirgan yoki arxivlangan.
 - Arxivlash hard delete o‘rniga ishlatiladi.
+- Arxivlangan startap va unga bog‘liq moliya/vazifalar faqat o‘qish rejimida qoladi; tahrirlashdan oldin admin uni tiklaydi.
 
 ## Xavfsizlik
 
 - Parollar Argon2id yordamida hash qilinadi.
 - Access token qisqa muddatli, refresh token serverdagi hash bilan tekshiriladi va rotatsiya qilinadi.
 - Tokenlar JavaScript kira olmaydigan HttpOnly cookie’da.
+- Barcha holat o‘zgartiruvchi so‘rovlar Origin va double-submit CSRF token bilan tekshiriladi.
 - Rol va account holati har bir himoyalangan so‘rovda bazadan olinadi.
+- Access token har bir so‘rovda serverdagi faol sessiyaga bog‘lanadi; bloklash va parol reseti sessiyalarni darhol bekor qiladi.
+- Foydalanuvchi faol sessiyalarini ko‘radi va boshqa qurilmalardagi sessiyani masofadan yopishi mumkin.
 - DTO whitelist ortiqcha input maydonlarini rad etadi.
 - Rate limiting va xavfsizlik headerlari global yoqilgan.
-- Muhim create/update/archive/stage amallari audit logga tushadi.
+- Login/logout, parol, create/update/delete/archive/restore/stage amallari audit logga tushadi.
+- Production’da standart secret va admin paroli bilan ishga tushish rad etiladi.
 
 ## Kengayish nuqtalari
 

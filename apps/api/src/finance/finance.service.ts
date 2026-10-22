@@ -121,7 +121,7 @@ export class FinanceService {
   }
 
   async updateProfile(startupId: string, dto: UpdateFinanceProfileDto, user: AuthUser) {
-    await this.assertStartup(startupId, user.organizationId);
+    await this.assertMutableStartup(startupId, user.organizationId);
     if (dto.budgetStartDate && dto.budgetEndDate && dto.budgetStartDate > dto.budgetEndDate) {
       throw new ConflictException('Budjet boshlanish sanasi tugash sanasidan keyin bo‘lishi mumkin emas');
     }
@@ -148,7 +148,7 @@ export class FinanceService {
   }
 
   async createTransaction(startupId: string, dto: CreateFinanceTransactionDto, user: AuthUser) {
-    await this.assertStartup(startupId, user.organizationId);
+    await this.assertMutableStartup(startupId, user.organizationId);
     if (dto.fundingRoundId) await this.assertRound(dto.fundingRoundId, startupId, user.organizationId);
     const profile = await this.prisma.startupFinanceProfile.findUnique({ where: { startupId } });
     const currency = this.currency(dto.currency || profile?.baseCurrency || 'UZS');
@@ -191,6 +191,7 @@ export class FinanceService {
     dto: UpdateFinanceTransactionDto,
     user: AuthUser,
   ) {
+    await this.assertMutableStartup(startupId, user.organizationId);
     const current = await this.assertTransaction(transactionId, startupId, user.organizationId);
     if (dto.fundingRoundId) await this.assertRound(dto.fundingRoundId, startupId, user.organizationId);
     const amount = dto.amount ?? Number(current.amount);
@@ -206,12 +207,12 @@ export class FinanceService {
         ...(dto.currency !== undefined && { currency: this.currency(dto.currency) }),
         ...(dto.exchangeRate !== undefined && { exchangeRate: dto.exchangeRate }),
         ...(dto.fundingRoundId !== undefined && { fundingRoundId: dto.fundingRoundId || null }),
-        ...(dto.counterparty !== undefined && { counterparty: dto.counterparty.trim() || null }),
-        ...(dto.paymentMethod !== undefined && { paymentMethod: dto.paymentMethod.trim() || null }),
-        ...(dto.reference !== undefined && { reference: dto.reference.trim() || null }),
+        ...(dto.counterparty !== undefined && { counterparty: dto.counterparty?.trim() || null }),
+        ...(dto.paymentMethod !== undefined && { paymentMethod: dto.paymentMethod?.trim() || null }),
+        ...(dto.reference !== undefined && { reference: dto.reference?.trim() || null }),
         ...(dto.occurredAt !== undefined && { occurredAt: new Date(dto.occurredAt) }),
-        ...(dto.receiptUrl !== undefined && { receiptUrl: dto.receiptUrl.trim() || null }),
-        ...(dto.notes !== undefined && { notes: dto.notes.trim() || null }),
+        ...(dto.receiptUrl !== undefined && { receiptUrl: dto.receiptUrl?.trim() || null }),
+        ...(dto.notes !== undefined && { notes: dto.notes?.trim() || null }),
         baseAmount: this.baseAmount(amount, exchangeRate),
         updatedById: user.userId,
       },
@@ -221,6 +222,7 @@ export class FinanceService {
   }
 
   async deleteTransaction(startupId: string, transactionId: string, user: AuthUser) {
+    await this.assertMutableStartup(startupId, user.organizationId);
     await this.assertTransaction(transactionId, startupId, user.organizationId);
     await this.prisma.startupFinanceTransaction.delete({ where: { id: transactionId } });
     await this.log(user, AuditAction.DELETE, 'StartupFinanceTransaction', transactionId, { startupId });
@@ -228,7 +230,7 @@ export class FinanceService {
   }
 
   async createFundingRound(startupId: string, dto: CreateFundingRoundDto, user: AuthUser) {
-    await this.assertStartup(startupId, user.organizationId);
+    await this.assertMutableStartup(startupId, user.organizationId);
     const profile = await this.prisma.startupFinanceProfile.findUnique({ where: { startupId } });
     const exchangeRate = dto.exchangeRate || 1;
     const round = await this.prisma.startupFundingRound.create({
@@ -264,6 +266,7 @@ export class FinanceService {
     dto: UpdateFundingRoundDto,
     user: AuthUser,
   ) {
+    await this.assertMutableStartup(startupId, user.organizationId);
     const current = await this.assertRound(roundId, startupId, user.organizationId);
     const raisedAmount = dto.raisedAmount ?? Number(current.raisedAmount);
     const exchangeRate = dto.exchangeRate ?? Number(current.exchangeRate);
@@ -280,10 +283,10 @@ export class FinanceService {
         ...(dto.preMoneyValuation !== undefined && { preMoneyValuation: dto.preMoneyValuation }),
         ...(dto.postMoneyValuation !== undefined && { postMoneyValuation: dto.postMoneyValuation }),
         ...(dto.equityPercent !== undefined && { equityPercent: dto.equityPercent }),
-        ...(dto.investorName !== undefined && { investorName: dto.investorName.trim() || null }),
+        ...(dto.investorName !== undefined && { investorName: dto.investorName?.trim() || null }),
         ...(dto.openedAt !== undefined && { openedAt: dto.openedAt ? new Date(dto.openedAt) : null }),
         ...(dto.closedAt !== undefined && { closedAt: dto.closedAt ? new Date(dto.closedAt) : null }),
-        ...(dto.notes !== undefined && { notes: dto.notes.trim() || null }),
+        ...(dto.notes !== undefined && { notes: dto.notes?.trim() || null }),
         baseRaisedAmount: this.baseAmount(raisedAmount, exchangeRate),
         updatedById: user.userId,
       },
@@ -293,6 +296,7 @@ export class FinanceService {
   }
 
   async deleteFundingRound(startupId: string, roundId: string, user: AuthUser) {
+    await this.assertMutableStartup(startupId, user.organizationId);
     await this.assertRound(roundId, startupId, user.organizationId);
     await this.prisma.startupFundingRound.delete({ where: { id: roundId } });
     await this.log(user, AuditAction.DELETE, 'StartupFundingRound', roundId, { startupId });
@@ -312,8 +316,16 @@ export class FinanceService {
   }
 
   private async assertStartup(id: string, organizationId: string) {
-    const startup = await this.prisma.startup.findFirst({ where: { id, organizationId }, select: { id: true } });
+    const startup = await this.prisma.startup.findFirst({ where: { id, organizationId }, select: { id: true, status: true } });
     if (!startup) throw new NotFoundException('Startap topilmadi');
+    return startup;
+  }
+
+  private async assertMutableStartup(id: string, organizationId: string) {
+    const startup = await this.assertStartup(id, organizationId);
+    if (startup.status === 'ARCHIVED') {
+      throw new ConflictException('Arxivlangan startap moliyasi faqat o‘qish rejimida');
+    }
     return startup;
   }
 

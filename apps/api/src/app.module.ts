@@ -13,7 +13,9 @@ import { StartupsModule } from './startups/startups.module';
 import { UsersModule } from './users/users.module';
 import { AuditModule } from './audit/audit.module';
 import { FinanceModule } from './finance/finance.module';
+import { MilestonesModule } from './milestones/milestones.module';
 import { validateEnvironment } from './config/environment';
+import { CsrfGuard } from './auth/csrf.guard';
 
 @Module({
   imports: [
@@ -30,11 +32,13 @@ import { validateEnvironment } from './config/environment';
     StagesModule,
     StartupsModule,
     FinanceModule,
+    MilestonesModule,
     DashboardModule,
   ],
   controllers: [HealthController],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
+    { provide: APP_GUARD, useClass: CsrfGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
   ],

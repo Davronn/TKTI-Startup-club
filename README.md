@@ -7,7 +7,7 @@ Startap klubining ichki boshqaruv tizimi. V1 startaplarni ro‘yxatga olish, riv
 - **Web:** Next.js 16, React 19, TypeScript, TanStack Query
 - **API:** NestJS 11, REST API (`/api/v1`), JWT + refresh sessions
 - **Database:** PostgreSQL, Prisma ORM
-- **Security:** Argon2id, HttpOnly cookie, RBAC, rate limiting, Helmet, audit log
+- **Security:** Argon2id, HttpOnly/SameSite cookie, CSRF himoyasi, server-side sessiya tekshiruvi, RBAC, rate limiting, Helmet/CSP, audit log
 - **Infrastructure:** Turborepo, Docker Compose, Redis va MinIO uchun tayyor servislar
 
 ## V1 imkoniyatlari
@@ -19,15 +19,18 @@ Startap klubining ichki boshqaruv tizimi. V1 startaplarni ro‘yxatga olish, riv
 - Sozlanadigan rivojlanish bosqichlari
 - Drag-and-drop Kanban pipeline
 - Bosqichlar o‘zgarishining to‘liq tarixi
+- Milestone va vazifalar: muddat, ustuvorlik, mas’ul, holat va progress
 - Ichki izohlar
-- Dashboard va bosqichlar kesimidagi ko‘rsatkichlar
+- Dashboard, bosqichlar kesimidagi ko‘rsatkichlar va muddati o‘tgan vazifalar ogohlantirishi
 - Har bir startap uchun kirim, chiqim va moliyalashtirish operatsiyalari
 - Ko‘p valutali hisob, bazaviy valuta kursi, budjet, burn rate va runway
 - Investitsiya raundlari, jalb qilingan mablag‘, baholash va berilgan ulush nazorati
 - Kontragent, to‘lov usuli, chek/hujjat havolasi va moliyaviy audit tarixi
 - CSV eksport
 - Multi-tenantga tayyor `organization_id` modeli
-- Muhim amallar auditi
+- Filtrlanadigan audit jurnali, arxivlash va arxivdan tiklash
+- Foydalanuvchi parolini o‘zi almashtirishi, faol qurilmalar/sessiyalarni ko‘rishi va masofadan yopishi
+- Admin tomonidan xavfsiz parol reseti va barcha sessiyalarni darhol bekor qilish
 
 ## Tez ishga tushirish
 
@@ -65,7 +68,7 @@ npm run dev
 - API: `http://localhost:4000/api/v1`
 - Health check: `http://localhost:4000/api/v1/health`
 
-Seed login `.env` orqali belgilanadi. Default development qiymati:
+Seed login `.env` orqali belgilanadi. Default qiymatlar faqat lokal development uchun:
 
 - Email: `admin@startupclub.uz`
 - Parol: `ChangeMe123!`
@@ -80,7 +83,7 @@ npm run start -w @startup-club/api
 npm run start -w @startup-club/web
 ```
 
-Production’da web va API alohida container sifatida deploy qilinadi. Next.js `API_INTERNAL_URL` orqali API’ga server-side proxy qiladi; brauzer backend manziliga to‘g‘ridan-to‘g‘ri ulanmaydi.
+Render konfiguratsiyasida web va API bitta servis jarayonida ishlaydi. Katta production muhitida ularni alohida servis/containerlarga ajratish mumkin. Next.js `API_INTERNAL_URL` orqali API’ga proxy qiladi; brauzer backend manziliga to‘g‘ridan-to‘g‘ri ulanmaydi.
 
 ## Vaqtinchalik serverga deploy
 
@@ -120,4 +123,6 @@ docs/
 - JWT secretlarni secret manager’da saqlang.
 - Default admin parolini birinchi deploydan oldin almashtiring.
 - CI’da `npm audit --omit=dev`, build va migration tekshiruvini majburiy qiling.
+
+To‘liq production checklist va zaifliklarni xabar qilish tartibi: [`SECURITY.md`](SECURITY.md).
 

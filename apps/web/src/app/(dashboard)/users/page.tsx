@@ -1,7 +1,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, Users } from 'lucide-react';
+import { KeyRound, Plus, X, Users } from 'lucide-react';
 import { FormEvent, useState } from 'react';
 import { toast } from 'sonner';
 import { apiFetch } from '@/lib/api';
@@ -14,6 +14,8 @@ export default function UsersPage() {
   const queryClient = useQueryClient();
   const { user: currentUser } = useAuth();
   const [showForm, setShowForm] = useState(false);
+  const [resetUserId, setResetUserId] = useState<string | null>(null);
+  const [resetPassword, setResetPassword] = useState('');
   const [form, setForm] = useState({ fullName: '', email: '', password: '', role: 'MANAGER' as Role });
   const { data = [], isLoading } = useQuery({ queryKey: ['users'], queryFn: () => apiFetch<UserListItem[]>('/users') });
 
@@ -32,6 +34,18 @@ export default function UsersPage() {
       apiFetch(`/users/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
     onSuccess: () => { toast.success('Foydalanuvchi yangilandi'); void queryClient.invalidateQueries({ queryKey: ['users'] }); },
     onError: (error) => toast.error(error instanceof Error ? error.message : 'Yangilab bo‘lmadi'),
+  });
+  const resetPasswordMutation = useMutation({
+    mutationFn: () => apiFetch(`/users/${resetUserId}/reset-password`, {
+      method: 'POST',
+      body: JSON.stringify({ password: resetPassword }),
+    }),
+    onSuccess: () => {
+      toast.success('Parol almashtirildi va foydalanuvchi sessiyalari yopildi');
+      setResetUserId(null);
+      setResetPassword('');
+    },
+    onError: (error) => toast.error(error instanceof Error ? error.message : 'Parolni almashtirib bo‘lmadi'),
   });
 
   if (isLoading) return <PageLoader />;
@@ -53,7 +67,7 @@ export default function UsersPage() {
           <div className="form-grid">
             <label className="form-field"><span>F.I.Sh.</span><input required minLength={2} value={form.fullName} onChange={(event) => setForm({ ...form, fullName: event.target.value })} placeholder="Ali Valiyev" /></label>
             <label className="form-field"><span>Email</span><input required type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} placeholder="ali@startupclub.uz" /></label>
-            <label className="form-field"><span>Vaqtinchalik parol</span><input required minLength={8} type="password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} placeholder="Kamida 8 belgi" /></label>
+            <label className="form-field"><span>Vaqtinchalik parol</span><input required minLength={12} maxLength={128} type="password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} placeholder="Kamida 12 belgi" /></label>
             <label className="form-field"><span>Rol</span><select value={form.role} onChange={(event) => setForm({ ...form, role: event.target.value as Role })}><option value="MANAGER">Menejer</option><option value="VIEWER">Kuzatuvchi</option><option value="ADMIN">Admin</option>{currentUser?.role === 'SUPER_ADMIN' && <option value="SUPER_ADMIN">Super admin</option>}</select></label>
           </div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 15 }}><button type="button" className="button button-secondary" onClick={() => setShowForm(false)}>Bekor qilish</button><button className="button button-primary" disabled={createMutation.isPending}>{createMutation.isPending ? 'Yaratilmoqda...' : 'Yaratish'}</button></div>
@@ -72,6 +86,13 @@ export default function UsersPage() {
                 <label className="form-field"><span>Rol</span><select value={item.role} disabled={item.id === currentUser?.id} onChange={(event) => updateMutation.mutate({ id: item.id, payload: { role: event.target.value } })}><option value="VIEWER">Kuzatuvchi</option><option value="MANAGER">Menejer</option><option value="ADMIN">Admin</option>{currentUser?.role === 'SUPER_ADMIN' && <option value="SUPER_ADMIN">Super admin</option>}</select></label>
                 <label className="form-field"><span>Holat</span><select value={item.isActive ? 'active' : 'inactive'} disabled={item.id === currentUser?.id} onChange={(event) => updateMutation.mutate({ id: item.id, payload: { isActive: event.target.value === 'active' } })}><option value="active">Faol</option><option value="inactive">Bloklangan</option></select></label>
               </div>
+              {item.id !== currentUser?.id && <div className="user-security-actions">
+                {resetUserId === item.id ? <>
+                  <input type="password" minLength={12} maxLength={128} value={resetPassword} onChange={(event) => setResetPassword(event.target.value)} placeholder="Yangi vaqtinchalik parol" />
+                  <button className="button button-primary" disabled={resetPassword.length < 12 || resetPasswordMutation.isPending} onClick={() => resetPasswordMutation.mutate()}>Saqlash</button>
+                  <button className="icon-button" onClick={() => { setResetUserId(null); setResetPassword(''); }} aria-label="Bekor qilish"><X size={15} /></button>
+                </> : <button className="button button-secondary" onClick={() => setResetUserId(item.id)}><KeyRound size={14} /> Parolni tiklash</button>}
+              </div>}
               <div className="user-card-footer"><span className="online-state"><i /> {item.isActive ? 'Faol hisob' : 'Bloklangan'}</span><span>Oxirgi kirish: {formatDate(item.lastLoginAt, true)}</span></div>
             </article>
           ))}

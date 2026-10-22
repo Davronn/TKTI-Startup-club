@@ -7,6 +7,8 @@ export type FinanceCategory =
   | 'MARKETING' | 'SALARY' | 'RENT' | 'OPERATIONS' | 'TAX' | 'TRAVEL' | 'OTHER';
 export type FundingRoundType = 'BOOTSTRAP' | 'GRANT' | 'PRE_SEED' | 'SEED' | 'SERIES_A' | 'SERIES_B' | 'SERIES_C' | 'OTHER';
 export type FundingRoundStatus = 'PLANNED' | 'OPEN' | 'CLOSED' | 'CANCELLED';
+export type MilestoneStatus = 'PLANNED' | 'IN_PROGRESS' | 'COMPLETED' | 'BLOCKED' | 'CANCELLED';
+export type MilestonePriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 
 export interface AuthUser {
   id: string;
@@ -173,4 +175,19 @@ export interface FinanceOverview {
   };
   transactions: FinanceTransaction[];
   fundingRounds: FundingRound[];
+}
+
+export interface Milestone {
+  id: string;
+  title: string;
+  description?: string | null;
+  status: MilestoneStatus;
+  priority: MilestonePriority;
+  dueDate?: string | null;
+  completedAt?: string | null;
+  assigneeId?: string | null;
+  assignee?: { id: string; fullName: string; avatarUrl?: string | null } | null;
+  createdBy: { id: string; fullName: string };
+  createdAt: string;
+  updatedAt: string;
 }

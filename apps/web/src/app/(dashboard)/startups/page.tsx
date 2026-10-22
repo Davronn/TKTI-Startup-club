@@ -93,9 +93,9 @@ export default function StartupsPage() {
         </div>
         <div className="toolbar-group">
           <button className="button button-secondary" onClick={exportCsv}><Download size={16} /> CSV</button>
-          <div className="view-toggle">
-            <button className={view === 'table' ? 'active' : ''} onClick={() => setView('table')}><List size={16} /></button>
-            <button className={view === 'grid' ? 'active' : ''} onClick={() => setView('grid')}><Grid2X2 size={16} /></button>
+          <div className="view-toggle" aria-label="Ko‘rinish turi">
+            <button className={view === 'table' ? 'active' : ''} onClick={() => setView('table')} aria-label="Jadval ko‘rinishi" aria-pressed={view === 'table'}><List size={16} /></button>
+            <button className={view === 'grid' ? 'active' : ''} onClick={() => setView('grid')} aria-label="Kartochka ko‘rinishi" aria-pressed={view === 'grid'}><Grid2X2 size={16} /></button>
           </div>
         </div>
       </div>
@@ -115,7 +115,18 @@ export default function StartupsPage() {
               <thead><tr><th>STARTAP</th><th>BOSQICH</th><th>HOLAT</th><th>KURATOR</th><th>JAMOA</th><th>QO‘SHILGAN</th></tr></thead>
               <tbody>
                 {data.items.map((startup, index) => (
-                  <tr key={startup.id} onClick={() => router.push(`/startups/${startup.id}`)}>
+                  <tr
+                    key={startup.id}
+                    onClick={() => router.push(`/startups/${startup.id}`)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        router.push(`/startups/${startup.id}`);
+                      }
+                    }}
+                    role="link"
+                    tabIndex={0}
+                  >
                     <td>
                       <div className="table-startup">
                         <div className="startup-logo" style={{ '--logo-soft': logoColors[index % 4][0], '--logo-color': logoColors[index % 4][1] } as React.CSSProperties}>
@@ -148,7 +159,19 @@ export default function StartupsPage() {
       ) : (
         <div className="startup-card-grid">
           {data.items.map((startup, index) => (
-            <article className="card startup-card" key={startup.id} onClick={() => router.push(`/startups/${startup.id}`)}>
+            <article
+              className="card startup-card"
+              key={startup.id}
+              onClick={() => router.push(`/startups/${startup.id}`)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  router.push(`/startups/${startup.id}`);
+                }
+              }}
+              role="link"
+              tabIndex={0}
+            >
               <div className="startup-card-head">
                 <div className="startup-card-name">
                   <div className="startup-logo" style={{ '--logo-soft': logoColors[index % 4][0], '--logo-color': logoColors[index % 4][1] } as React.CSSProperties}>{initials(startup.name)}</div>

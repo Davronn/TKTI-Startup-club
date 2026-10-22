@@ -159,6 +159,10 @@ export class StartupsService {
 
   async update(id: string, dto: UpdateStartupDto, user: AuthUser) {
     const current = await this.findOwned(id, user.organizationId);
+    this.assertMutable(current.status);
+    if (dto.status === StartupStatus.ARCHIVED) {
+      throw new ConflictException('Arxivlash uchun maxsus arxiv endpointidan foydalaning');
+    }
     if (dto.currentStageId && dto.currentStageId !== current.currentStageId) {
       await this.assertStage(dto.currentStageId, user.organizationId);
     }
@@ -211,6 +215,7 @@ export class StartupsService {
 
   async changeStage(id: string, dto: ChangeStageDto, user: AuthUser) {
     const current = await this.findOwned(id, user.organizationId);
+    this.assertMutable(current.status);
     if (current.currentStageId === dto.stageId) return this.findOne(id, user);
     await this.assertStage(dto.stageId, user.organizationId);
     await this.prisma.$transaction([
@@ -255,8 +260,26 @@ export class StartupsService {
     return { success: true };
   }
 
+  async restore(id: string, user: AuthUser) {
+    const startup = await this.findOwned(id, user.organizationId);
+    if (startup.status !== StartupStatus.ARCHIVED) return { success: true };
+    await this.prisma.startup.update({
+      where: { id },
+      data: { status: StartupStatus.ACTIVE, archivedAt: null, updatedById: user.userId },
+    });
+    await this.audit.log({
+      organizationId: user.organizationId,
+      userId: user.userId,
+      action: AuditAction.RESTORE,
+      entity: 'Startup',
+      entityId: id,
+    });
+    return { success: true };
+  }
+
   async addNote(id: string, dto: CreateNoteDto, user: AuthUser) {
-    await this.findOwned(id, user.organizationId);
+    const startup = await this.findOwned(id, user.organizationId);
+    this.assertMutable(startup.status);
     const note = await this.prisma.startupNote.create({
       data: { startupId: id, authorId: user.userId, content: dto.content.trim() },
       include: { author: { select: { id: true, fullName: true, avatarUrl: true } } },
@@ -288,6 +311,12 @@ export class StartupsService {
     return startup;
   }
 
+  private assertMutable(status: StartupStatus) {
+    if (status === StartupStatus.ARCHIVED) {
+      throw new ConflictException('Arxivlangan startap faqat o‘qish rejimida. Avval uni tiklang.');
+    }
+  }
+
   private async assertStage(stageId: string, organizationId: string) {
     const stage = await this.prisma.startupStage.findFirst({
       where: { id: stageId, organizationId, isActive: true },
@@ -299,8 +328,9 @@ export class StartupsService {
     if (!curatorId) return;
     const membership = await this.prisma.organizationMember.findUnique({
       where: { organizationId_userId: { organizationId, userId: curatorId } },
+      include: { user: { select: { isActive: true } } },
     });
-    if (!membership) throw new ConflictException('Tanlangan kurator tashkilot a’zosi emas');
+    if (!membership?.user.isActive) throw new ConflictException('Tanlangan kurator faol tashkilot a’zosi emas');
   }
 
   private async uniqueSlug(name: string, organizationId: string) {

@@ -75,4 +75,10 @@ export class StartupsController {
   archive(@Param('id') id: string, @CurrentUser() user: AuthUser) {
     return this.service.archive(id, user);
   }
+
+  @Roles(OrganizationRole.SUPER_ADMIN, OrganizationRole.ADMIN)
+  @Post(':id/restore')
+  restore(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    return this.service.restore(id, user);
+  }
 }

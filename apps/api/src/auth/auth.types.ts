@@ -2,6 +2,7 @@ import { OrganizationRole } from '@prisma/client';
 
 export interface AuthUser {
   userId: string;
+  sessionId: string;
   organizationId: string;
   role: OrganizationRole;
   email: string;
@@ -10,6 +11,7 @@ export interface AuthUser {
 
 export interface AccessTokenPayload {
   sub: string;
+  sessionId: string;
   organizationId: string;
   role: OrganizationRole;
   email: string;
@@ -20,5 +22,6 @@ export interface AccessTokenPayload {
 export interface RefreshTokenPayload {
   sub: string;
   sessionId: string;
+  organizationId: string;
   type: 'refresh';
 }
