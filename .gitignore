@@ -11,3 +11,7 @@ coverage/
 apps/api/prisma/dev.db
 apps/api/prisma/dev.db-journal
 uploads/
+# Playwright: saqlangan sessiya va hisobotlar
+apps/web/e2e/.auth/
+apps/web/test-results/
+apps/web/playwright-report/
