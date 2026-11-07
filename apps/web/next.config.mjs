@@ -8,7 +8,7 @@ const contentSecurityPolicy = [
   "form-action 'self'",
   `script-src 'self' 'unsafe-inline'${isDevelopment ? " 'unsafe-eval'" : ''}`,
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: https:",
+  "img-src 'self' data: blob: https:",
   "font-src 'self' data:",
   "connect-src 'self'",
   "manifest-src 'self'",

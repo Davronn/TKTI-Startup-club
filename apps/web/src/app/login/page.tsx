@@ -39,13 +39,9 @@ export default function LoginPage() {
 
   return (
     <main className="login-page">
-      <div className="login-orb login-orb-one" aria-hidden="true" />
-      <div className="login-orb login-orb-two" aria-hidden="true" />
-
       <section className="login-panel">
         <header className="login-form-heading">
           <div className="login-logo"><Logo /></div>
-          <span className="login-kicker">STARTUP CLUB PLATFORM</span>
           <h1>Tizimga kirish</h1>
           <p>Ichki boshqaruv paneliga kirish uchun ma’lumotlaringizni kiriting.</p>
         </header>
