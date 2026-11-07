@@ -20,6 +20,9 @@ import {
   Min,
 } from 'class-validator';
 
+const MAX_AMOUNT = 1_000_000_000_000_000; // Decimal(20,2) chegarasidan ancha past
+const MAX_EXCHANGE_RATE = 1_000_000;
+
 const currencyMessage = 'Valuta 3 harfli ISO kod bo‘lishi kerak (masalan, UZS yoki USD)';
 
 export class UpdateFinanceProfileDto {
@@ -29,10 +32,13 @@ export class UpdateFinanceProfileDto {
 
   @IsOptional()
   @IsNumber({ maxDecimalPlaces: 2 })
+  @Max(MAX_AMOUNT)
+  @Min(-MAX_AMOUNT)
   openingBalance?: number;
 
   @IsOptional()
   @IsNumber({ maxDecimalPlaces: 2 })
+  @Max(MAX_AMOUNT)
   @Min(0)
   budgetAmount?: number | null;
 
@@ -66,6 +72,7 @@ export class CreateFinanceTransactionDto {
   title!: string;
 
   @IsNumber({ maxDecimalPlaces: 2 })
+  @Max(MAX_AMOUNT)
   @Min(0.01)
   amount!: number;
 
@@ -76,6 +83,7 @@ export class CreateFinanceTransactionDto {
   @IsOptional()
   @IsNumber({ maxDecimalPlaces: 6 })
   @Min(0.000001)
+  @Max(MAX_EXCHANGE_RATE)
   exchangeRate?: number;
 
   @IsOptional()
@@ -127,11 +135,13 @@ export class CreateFundingRoundDto {
 
   @IsOptional()
   @IsNumber({ maxDecimalPlaces: 2 })
+  @Max(MAX_AMOUNT)
   @Min(0)
   targetAmount?: number | null;
 
   @IsOptional()
   @IsNumber({ maxDecimalPlaces: 2 })
+  @Max(MAX_AMOUNT)
   @Min(0)
   raisedAmount?: number;
 
@@ -142,15 +152,18 @@ export class CreateFundingRoundDto {
   @IsOptional()
   @IsNumber({ maxDecimalPlaces: 6 })
   @Min(0.000001)
+  @Max(MAX_EXCHANGE_RATE)
   exchangeRate?: number;
 
   @IsOptional()
   @IsNumber({ maxDecimalPlaces: 2 })
+  @Max(MAX_AMOUNT)
   @Min(0)
   preMoneyValuation?: number | null;
 
   @IsOptional()
   @IsNumber({ maxDecimalPlaces: 2 })
+  @Max(MAX_AMOUNT)
   @Min(0)
   postMoneyValuation?: number | null;
 

@@ -3,15 +3,16 @@
 import {
   BarChart3,
   Building2,
-  ChevronRight,
   ClipboardList,
   KanbanSquare,
+  Lock,
   LogOut,
   Menu,
   Plus,
   Settings,
   ShieldCheck,
   Users,
+  Wallet,
   X,
 } from 'lucide-react';
 import Link from 'next/link';
@@ -20,12 +21,13 @@ import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/providers/auth-provider';
 import { initials, roleLabels } from '@/lib/format';
 import { Logo } from './logo';
-import { PageLoader } from './ui';
+import { EmptyState, PageLoader } from './ui';
 
 const navigation = [
   { href: '/dashboard', label: 'Boshqaruv paneli', icon: BarChart3 },
   { href: '/startups', label: 'Startaplar', icon: Building2 },
   { href: '/pipeline', label: 'Pipeline', icon: KanbanSquare },
+  { href: '/kassa', label: 'Bo‘lim kassasi', icon: Wallet },
   { href: '/settings/security', label: 'Xavfsizlik', icon: ShieldCheck },
   { href: '/users', label: 'Foydalanuvchilar', icon: Users, adminOnly: true },
   { href: '/audit', label: 'Audit jurnali', icon: ClipboardList, adminOnly: true },
@@ -40,6 +42,12 @@ const titleMap: Record<string, { title: string; subtitle: string }> = {
   '/audit': { title: 'Audit jurnali', subtitle: 'Muhim amallar va xavfsizlik hodisalari' },
   '/settings/stages': { title: 'Bosqichlar', subtitle: 'Pipeline bosqichlarini sozlang' },
   '/settings/security': { title: 'Xavfsizlik', subtitle: 'Parol va faol sessiyalar himoyasi' },
+  '/kassa': { title: 'Bo‘lim kassasi', subtitle: 'Naqd va karta qoldiqlari, oylik holat' },
+  '/kassa/yangi': { title: 'Yangi kassa yozuvi', subtitle: 'Kirim, chiqim yoki hisoblar aro o‘tkazmani qayd eting' },
+  '/kassa/jurnal': { title: 'Kassa jurnali', subtitle: 'Barcha operatsiyalar hujjat raqami bilan, kun bo‘yicha' },
+  '/kassa/cheklar': { title: 'Cheklar', subtitle: 'Biriktirilgan rasmlar va cheki yo‘q xarajatlar' },
+  '/kassa/hisobotlar': { title: 'Kassa hisobotlari', subtitle: 'Excel va Word hisobot, dinamika va yo‘nalishlar' },
+  '/kassa/sozlamalar': { title: 'Kassa sozlamalari', subtitle: 'Mas’ullar, boshlang‘ich qoldiq va arxiv' },
 };
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -59,13 +67,32 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       return { title: 'Yangi startap', subtitle: 'Loyiha ma’lumotlarini tizimga kiriting' };
     if (/^\/startups\/[^/]+\/edit$/.test(pathname))
       return { title: 'Startapni tahrirlash', subtitle: 'Loyiha ma’lumotlarini yangilang' };
+    if (pathname.startsWith('/kassa/yozuv/'))
+      return { title: 'Kassa yozuvini tahrirlash', subtitle: 'O‘zgarishlarni kiriting va saqlang' };
     if (/^\/startups\/[^/]+$/.test(pathname))
       return { title: 'Startap profili', subtitle: 'Loyiha haqida to‘liq ma’lumot' };
     return titleMap[pathname] || titleMap['/dashboard'];
   }, [pathname]);
 
+  // Brauzer yorlig‘ida joriy sahifa nomi (bir nechta yorliq ochiq bo‘lsa, ajratish oson)
+  useEffect(() => {
+    document.title = `${header.title} · TKTI StartUp Club`;
+  }, [header.title]);
+
   if (loading || !user) return <PageLoader />;
   const isAdmin = user.role === 'SUPER_ADMIN' || user.role === 'ADMIN';
+  // Menyuda yashirilgan bo‘limlar manzil orqali ham ochilmasin
+  const adminOnlyPage = navigation.some((item) => item.adminOnly && (pathname === item.href || pathname.startsWith(`${item.href}/`)));
+  const content = adminOnlyPage && !isAdmin ? (
+    <div className="card">
+      <EmptyState
+        icon={<Lock size={23} />}
+        title="Ruxsat yo‘q"
+        description="Bu bo‘lim faqat administratorlar uchun."
+        action={<Link href="/dashboard" className="button button-secondary">Boshqaruv paneliga</Link>}
+      />
+    </div>
+  ) : children;
 
   return (
     <div className="app-layout">
@@ -84,7 +111,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <small>ISH MAYDONI</small>
             <strong>{organization?.name || 'StartUp Club'}</strong>
           </div>
-          <ChevronRight size={16} />
         </div>
 
         <nav className="sidebar-nav">
@@ -129,13 +155,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </div>
           </div>
           <div className="topbar-actions">
-            <Link href="/startups/new" className="button button-primary">
-              <Plus size={18} /> <span>Startap qo‘shish</span>
-            </Link>
+            {user.role !== 'VIEWER' && pathname !== '/startups/new' && (
+              <Link href="/startups/new" className="button button-primary">
+                <Plus size={18} /> <span>Startap qo‘shish</span>
+              </Link>
+            )}
             <div className="avatar">{initials(user.fullName)}</div>
           </div>
         </header>
-        <main className="page-content">{children}</main>
+        <main className="page-content">{content}</main>
       </div>
     </div>
   );

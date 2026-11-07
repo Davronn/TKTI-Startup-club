@@ -7,8 +7,9 @@ import { PrismaService } from '../prisma/prisma.service';
 import { ChangeStageDto } from './dto/change-stage.dto';
 import { CreateNoteDto } from './dto/create-note.dto';
 import { CreateStartupDto } from './dto/create-startup.dto';
-import { ListStartupsDto } from './dto/list-startups.dto';
+import { ListStartupsDto, StartupSortField } from './dto/list-startups.dto';
 import { UpdateStartupDto } from './dto/update-startup.dto';
+import { rejectNulls } from '../common/reject-nulls';
 
 const listInclude = {
   currentStage: true,
@@ -44,13 +45,28 @@ export class StartupsService {
       this.prisma.startup.findMany({
         where,
         include: listInclude,
-        orderBy: { updatedAt: 'desc' },
+        orderBy: this.listOrder(query),
         skip: (page - 1) * limit,
         take: limit,
       }),
       this.prisma.startup.count({ where }),
     ]);
     return { items, meta: { page, limit, total, pages: Math.ceil(total / limit) } };
+  }
+
+  private listOrder(query: ListStartupsDto): Prisma.StartupOrderByWithRelationInput[] {
+    const direction: Prisma.SortOrder = query.order === 'asc' ? 'asc' : 'desc';
+    const primary: Record<StartupSortField, Prisma.StartupOrderByWithRelationInput> = {
+      updatedAt: { updatedAt: direction },
+      name: { name: direction },
+      joinedAt: { joinedAt: direction },
+      stage: { currentStage: { position: direction } },
+      status: { status: direction },
+      curator: { curator: { fullName: direction } },
+      team: { members: { _count: direction } },
+    };
+    // Teng qiymatlarda sahifalar orasida yozuvlar "sakramasligi" uchun barqaror ikkinchi kalit
+    return [primary[query.sort || 'updatedAt'], { id: 'asc' }];
   }
 
   async pipeline(user: AuthUser) {
@@ -91,7 +107,12 @@ export class StartupsService {
           orderBy: { createdAt: 'desc' },
         },
         tags: { include: { tag: true } },
-        files: { orderBy: { createdAt: 'desc' } },
+        // Fayl mazmuni (data) bu yerda qaytarilmaydi — u alohida endpoint orqali yuklanadi
+        files: {
+          where: { kind: 'DOCUMENT' },
+          select: { id: true, name: true, contentType: true, size: true, createdAt: true, uploader: { select: { id: true, fullName: true } } },
+          orderBy: { createdAt: 'desc' },
+        },
       },
     });
     if (!startup) throw new NotFoundException('Startap topilmadi');
@@ -158,6 +179,7 @@ export class StartupsService {
   }
 
   async update(id: string, dto: UpdateStartupDto, user: AuthUser) {
+    rejectNulls(dto, ['name', 'currentStageId', 'joinedAt', 'status', 'members']);
     const current = await this.findOwned(id, user.organizationId);
     this.assertMutable(current.status);
     if (dto.status === StartupStatus.ARCHIVED) {
@@ -181,6 +203,10 @@ export class StartupsService {
         },
         include: listInclude,
       });
+      // Logotip boshqa havolaga almashtirilsa yoki tozalansa, yuklangan eski fayl bazada qolib ketmasin
+      if (dto.logoUrl !== undefined && dto.logoUrl !== current.logoUrl) {
+        await tx.startupFile.deleteMany({ where: { startupId: id, kind: 'LOGO' } });
+      }
       if (members) {
         await tx.startupMember.deleteMany({ where: { startupId: id } });
         if (members.length) {

@@ -12,12 +12,14 @@ import {
   TrendingUp,
   UserRound,
 } from 'lucide-react';
+import { CashSummaryCard } from '@/components/cash/cash-summary-card';
 import Link from 'next/link';
 import { apiFetch } from '@/lib/api';
 import { formatDate, initials } from '@/lib/format';
 import { Startup } from '@/lib/types';
 import { Logo } from '@/components/logo';
-import { PageLoader, StageBadge, StatusBadge } from '@/components/ui';
+import { ErrorState, PageLoader, StageBadge, StatusBadge } from '@/components/ui';
+import { useAuth } from '@/providers/auth-provider';
 
 interface DashboardData {
   summary: {
@@ -70,13 +72,15 @@ const logoColors = [
 ];
 
 export default function DashboardPage() {
-  const { data, isLoading, error } = useQuery({
+  const { user } = useAuth();
+  const canCreate = user?.role !== 'VIEWER';
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['dashboard'],
     queryFn: () => apiFetch<DashboardData>('/dashboard'),
   });
 
   if (isLoading) return <PageLoader />;
-  if (error || !data) return <div className="card empty-state">Ma’lumotlarni yuklab bo‘lmadi.</div>;
+  if (error || !data) return <ErrorState error={error} onRetry={() => void refetch()} />;
   const maxStage = Math.max(...data.stages.map((stage) => stage.count), 1);
 
   const stats = [
@@ -220,10 +224,12 @@ export default function DashboardPage() {
               <div><h2>Tezkor amallar</h2><p>Ko‘p ishlatiladigan bo‘limlar</p></div>
             </div>
             <div className="card-body" style={{ display: 'grid', gap: 9 }}>
-              <Link href="/startups/new" className="button button-primary"><Plus size={16} /> Yangi startap qo‘shish</Link>
+              {canCreate && <Link href="/startups/new" className="button button-primary"><Plus size={16} /> Yangi startap qo‘shish</Link>}
               <Link href="/pipeline" className="button button-secondary"><BarChart3 size={16} /> Pipeline’ni ko‘rish</Link>
             </div>
           </article>
+
+          <CashSummaryCard />
 
           <article className="card">
             <div className="card-header">

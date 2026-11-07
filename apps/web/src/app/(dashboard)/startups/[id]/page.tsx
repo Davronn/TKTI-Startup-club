@@ -20,12 +20,13 @@ import { toast } from 'sonner';
 import { apiFetch } from '@/lib/api';
 import { formatDate, initials, statusLabels } from '@/lib/format';
 import { Stage, Startup } from '@/lib/types';
-import { PageLoader, StageBadge, StatusBadge } from '@/components/ui';
+import { ErrorState, PageLoader, StageBadge, StatusBadge } from '@/components/ui';
 import { useAuth } from '@/providers/auth-provider';
 import { FinancePanel } from '@/components/finance-panel';
 import { MilestonePanel } from '@/components/milestone-panel';
+import { DocumentsPanel } from '@/components/documents-panel';
 
-type Tab = 'overview' | 'finance' | 'milestones' | 'team' | 'timeline' | 'notes';
+type Tab = 'overview' | 'finance' | 'milestones' | 'documents' | 'team' | 'timeline' | 'notes';
 
 export default function StartupDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -34,33 +35,43 @@ export default function StartupDetailPage() {
   const { user } = useAuth();
   const [tab, setTab] = useState<Tab>('overview');
   const [note, setNote] = useState('');
-  const { data, isLoading } = useQuery({ queryKey: ['startup', id], queryFn: () => apiFetch<Startup>(`/startups/${id}`) });
+  const { data, isLoading, error, refetch } = useQuery({ queryKey: ['startup', id], queryFn: () => apiFetch<Startup>(`/startups/${id}`) });
   const { data: stages = [] } = useQuery({ queryKey: ['stages'], queryFn: () => apiFetch<Stage[]>('/stages') });
+  // Startap ma’lumoti o‘zgarganda unga bog‘liq ro‘yxatlar ham yangilanadi
+  const refreshRelated = () => Promise.all(
+    [['startup', id], ['startups'], ['pipeline'], ['dashboard']].map((queryKey) => queryClient.invalidateQueries({ queryKey })),
+  );
 
   const stageMutation = useMutation({
     mutationFn: (stageId: string) => apiFetch(`/startups/${id}/stage`, { method: 'POST', body: JSON.stringify({ stageId }) }),
-    onSuccess: () => { toast.success('Bosqich yangilandi'); void queryClient.invalidateQueries({ queryKey: ['startup', id] }); },
+    onSuccess: () => { toast.success('Bosqich yangilandi'); void refreshRelated(); },
     onError: (error) => toast.error(error instanceof Error ? error.message : 'Bosqichni yangilab bo‘lmadi'),
   });
   const noteMutation = useMutation({
-    mutationFn: () => apiFetch(`/startups/${id}/notes`, { method: 'POST', body: JSON.stringify({ content: note }) }),
+    mutationFn: () => apiFetch(`/startups/${id}/notes`, { method: 'POST', body: JSON.stringify({ content: note.trim() }) }),
     onSuccess: () => { setNote(''); toast.success('Izoh qo‘shildi'); void queryClient.invalidateQueries({ queryKey: ['startup', id] }); },
     onError: (error) => toast.error(error instanceof Error ? error.message : 'Izohni qo‘shib bo‘lmadi'),
   });
   const archiveMutation = useMutation({
     mutationFn: () => apiFetch(`/startups/${id}/archive`, { method: 'POST' }),
-    onSuccess: () => { toast.success('Startap arxivlandi'); router.push('/startups'); },
+    onSuccess: () => { toast.success('Startap arxivlandi'); void refreshRelated(); router.push('/startups'); },
     onError: (error) => toast.error(error instanceof Error ? error.message : 'Arxivlab bo‘lmadi'),
   });
   const restoreMutation = useMutation({
     mutationFn: () => apiFetch(`/startups/${id}/restore`, { method: 'POST' }),
-    onSuccess: () => { toast.success('Startap qayta faollashtirildi'); void queryClient.invalidateQueries({ queryKey: ['startup', id] }); },
+    onSuccess: () => { toast.success('Startap qayta faollashtirildi'); void refreshRelated(); },
     onError: (error) => toast.error(error instanceof Error ? error.message : 'Startapni tiklab bo‘lmadi'),
   });
 
-  if (isLoading || !data) return <PageLoader />;
+  if (isLoading) return <PageLoader />;
+  if (error || !data) {
+    return <ErrorState error={error} onRetry={() => void refetch()} action={<Link href="/startups" className="button button-secondary">Startaplar ro‘yxatiga</Link>} />;
+  }
   const canEdit = user?.role !== 'VIEWER' && data.status !== 'ARCHIVED';
   const canArchive = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN';
+  // Joriy bosqich yashirilgan bo‘lsa ham ro‘yxatda ko‘rinsin, aks holda select noto‘g‘ri bosqichni ko‘rsatadi
+  const stageOptions = stages.filter((stage) => stage.isActive || stage.id === data.currentStageId);
+  if (!stageOptions.some((stage) => stage.id === data.currentStageId)) stageOptions.unshift(data.currentStage);
 
   return (
     <>
@@ -74,7 +85,7 @@ export default function StartupDetailPage() {
         </div>
         <div className="detail-actions">
           {canArchive && data.status !== 'ARCHIVED' && (
-            <button className="button button-danger" onClick={() => window.confirm('Startapni arxivlamoqchimisiz?') && archiveMutation.mutate()}><Archive size={16} /> Arxivlash</button>
+            <button className="button button-danger" disabled={archiveMutation.isPending} onClick={() => window.confirm(`"${data.name}" startapini arxivlamoqchimisiz? Arxivdan keyinroq tiklash mumkin.`) && archiveMutation.mutate()}><Archive size={16} /> Arxivlash</button>
           )}
           {canArchive && data.status === 'ARCHIVED' && (
             <button className="button button-secondary" disabled={restoreMutation.isPending} onClick={() => restoreMutation.mutate()}><RotateCcw size={16} /> Tiklash</button>
@@ -86,7 +97,7 @@ export default function StartupDetailPage() {
       <div className="detail-grid">
         <section className="card">
           <div className="tabs">
-            {([['overview', 'Umumiy'], ['finance', 'Moliya'], ['milestones', 'Vazifalar'], ['team', `Jamoa (${data.members?.length || 0})`], ['timeline', 'Bosqichlar tarixi'], ['notes', `Izohlar (${data.notes?.length || 0})`]] as [Tab, string][]).map(([value, label]) => (
+            {([['overview', 'Umumiy'], ['finance', 'Moliya'], ['milestones', 'Vazifalar'], ['documents', `Hujjatlar (${data.files?.length || 0})`], ['team', `Jamoa (${data.members?.length || 0})`], ['timeline', 'Bosqichlar tarixi'], ['notes', `Izohlar (${data.notes?.length || 0})`]] as [Tab, string][]).map(([value, label]) => (
               <button key={value} className={tab === value ? 'active' : ''} onClick={() => setTab(value)}>{label}</button>
             ))}
           </div>
@@ -114,6 +125,7 @@ export default function StartupDetailPage() {
 
           {tab === 'finance' && <FinancePanel startupId={id} canEdit={canEdit} canDelete={canArchive} />}
           {tab === 'milestones' && <MilestonePanel startupId={id} canEdit={canEdit} canDelete={canArchive} />}
+          {tab === 'documents' && <DocumentsPanel startupId={id} canEdit={canEdit} canDelete={canEdit} />}
 
           {tab === 'team' && (
             data.members?.length ? <div className="team-list">{data.members.map((member, index) => (
@@ -161,12 +173,12 @@ export default function StartupDetailPage() {
           <div className="card side-card">
             <h3>Joriy bosqich</h3>
             <select className="stage-select-big" value={data.currentStageId} disabled={!canEdit || stageMutation.isPending} onChange={(event) => stageMutation.mutate(event.target.value)}>
-              {stages.filter((stage) => stage.isActive).map((stage) => <option key={stage.id} value={stage.id}>{stage.name}</option>)}
+              {stageOptions.map((stage) => <option key={stage.id} value={stage.id}>{stage.name}{stage.isActive ? '' : ' (yashirilgan)'}</option>)}
             </select>
           </div>
           <div className="card side-card">
             <h3>Biriktirilgan kurator</h3>
-            {data.curator ? <div className="curator-card"><span className="avatar">{initials(data.curator.fullName)}</span><div><strong>{data.curator.fullName}</strong><span>{data.curator.email || 'Kurator'}</span></div></div> : <p className="muted" style={{ fontSize: 10 }}>Kurator biriktirilmagan</p>}
+            {data.curator ? <div className="curator-card"><span className="avatar">{initials(data.curator.fullName)}</span><div><strong>{data.curator.fullName}</strong><span>{data.curator.email || 'Kurator'}</span></div></div> : <p className="muted" style={{ fontSize: 13 }}>Kurator biriktirilmagan</p>}
           </div>
           <div className="card side-card">
             <h3>Aloqa ma’lumotlari</h3>

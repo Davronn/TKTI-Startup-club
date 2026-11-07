@@ -13,28 +13,36 @@ import {
   MaxLength,
   Min,
   MinLength,
+  ValidateIf,
   ValidateNested,
 } from 'class-validator';
+
+const INTERNAL_FILE_URL = /^\/api\/backend\/startups\/[0-9a-f-]{36}\/files\/[0-9a-f-]{36}$/i;
 
 export class CreateStartupMemberDto {
   @IsString()
   @MinLength(2)
+  @MaxLength(120)
   fullName: string;
 
   @IsOptional()
   @IsString()
+  @MaxLength(120)
   role?: string;
 
   @IsOptional()
   @IsEmail()
+  @MaxLength(254)
   email?: string;
 
   @IsOptional()
   @IsString()
+  @MaxLength(40)
   phone?: string;
 
   @IsOptional()
   @IsUrl({ require_protocol: true })
+  @MaxLength(500)
   linkedinUrl?: string;
 
   @IsOptional()
@@ -68,22 +76,27 @@ export class CreateStartupDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(120)
   industry?: string;
 
   @IsOptional()
   @IsUrl({ require_protocol: true })
+  @MaxLength(500)
   website?: string;
 
   @IsOptional()
   @IsEmail()
+  @MaxLength(254)
   email?: string;
 
   @IsOptional()
   @IsString()
+  @MaxLength(40)
   phone?: string;
 
   @IsOptional()
   @IsString()
+  @MaxLength(200)
   location?: string;
 
   @IsOptional()
@@ -101,11 +114,15 @@ export class CreateStartupDto {
   joinedAt?: string;
 
   @IsOptional()
+  // Tizimga yuklangan logotip ichki manzil bilan saqlanadi; tashqi havola esa to‘liq URL bo‘lishi kerak
+  @ValidateIf((dto: CreateStartupDto) => !INTERNAL_FILE_URL.test(dto.logoUrl ?? ''))
   @IsUrl({ require_protocol: true })
+  @MaxLength(500)
   logoUrl?: string;
 
   @IsOptional()
   @IsUrl({ require_protocol: true })
+  @MaxLength(500)
   pitchDeckUrl?: string;
 
   @IsOptional()

@@ -1,8 +1,9 @@
-import { IsHexColor, IsInt, IsOptional, IsString, Min, MinLength } from 'class-validator';
+import { IsHexColor, IsInt, IsOptional, IsString, Min, MaxLength, MinLength } from 'class-validator';
 
 export class CreateStageDto {
   @IsString()
   @MinLength(2)
+  @MaxLength(80)
   name: string;
 
   @IsOptional()

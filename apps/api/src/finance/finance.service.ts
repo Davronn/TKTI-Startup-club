@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import {
   AuditAction,
   FinanceCategory,
@@ -16,6 +16,9 @@ import {
   UpdateFinanceTransactionDto,
   UpdateFundingRoundDto,
 } from './dto/finance.dto';
+import { rejectNulls } from '../common/reject-nulls';
+
+const MAX_BASE_AMOUNT = new Prisma.Decimal('999999999999999999.99');
 
 @Injectable()
 export class FinanceService {
@@ -121,6 +124,7 @@ export class FinanceService {
   }
 
   async updateProfile(startupId: string, dto: UpdateFinanceProfileDto, user: AuthUser) {
+    rejectNulls(dto, ['baseCurrency', 'openingBalance']);
     await this.assertMutableStartup(startupId, user.organizationId);
     if (dto.budgetStartDate && dto.budgetEndDate && dto.budgetStartDate > dto.budgetEndDate) {
       throw new ConflictException('Budjet boshlanish sanasi tugash sanasidan keyin bo‘lishi mumkin emas');
@@ -191,6 +195,7 @@ export class FinanceService {
     dto: UpdateFinanceTransactionDto,
     user: AuthUser,
   ) {
+    rejectNulls(dto, ['type', 'category', 'status', 'title', 'amount', 'currency', 'exchangeRate', 'occurredAt']);
     await this.assertMutableStartup(startupId, user.organizationId);
     const current = await this.assertTransaction(transactionId, startupId, user.organizationId);
     if (dto.fundingRoundId) await this.assertRound(dto.fundingRoundId, startupId, user.organizationId);
@@ -266,6 +271,7 @@ export class FinanceService {
     dto: UpdateFundingRoundDto,
     user: AuthUser,
   ) {
+    rejectNulls(dto, ['type', 'status', 'name', 'raisedAmount', 'currency', 'exchangeRate']);
     await this.assertMutableStartup(startupId, user.organizationId);
     const current = await this.assertRound(roundId, startupId, user.organizationId);
     const raisedAmount = dto.raisedAmount ?? Number(current.raisedAmount);
@@ -308,7 +314,11 @@ export class FinanceService {
   }
 
   private baseAmount(amount: number, exchangeRate: number) {
-    return new Prisma.Decimal(amount).mul(exchangeRate).toDecimalPlaces(2);
+    const value = new Prisma.Decimal(amount).mul(exchangeRate).toDecimalPlaces(2);
+    if (value.abs().greaterThan(MAX_BASE_AMOUNT)) {
+      throw new BadRequestException('Bazaviy valutadagi summa juda katta');
+    }
+    return value;
   }
 
   private currency(value: string) {

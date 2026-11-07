@@ -1,4 +1,11 @@
-import { ConflictException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import {
+  ConflictException,
+  HttpException,
+  HttpStatus,
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { hash, verify } from '@node-rs/argon2';
@@ -8,10 +15,12 @@ import { LoginDto } from './dto/login.dto';
 import { AccessTokenPayload, AuthUser, RefreshTokenPayload } from './auth.types';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { hashPassword } from './password';
+import { LoginAttemptLimiter } from './login-attempts';
 
 @Injectable()
 export class AuthService {
   private readonly dummyPasswordHash = hashPassword('timing-check-only-password');
+  private readonly loginLimiter = new LoginAttemptLimiter();
 
   constructor(
     private readonly prisma: PrismaService,
@@ -20,14 +29,24 @@ export class AuthService {
   ) {}
 
   async login(dto: LoginDto, userAgent?: string, ipAddress?: string) {
+    const email = dto.email.toLowerCase().trim();
+    const retryAfter = this.loginLimiter.retryAfterSeconds(email);
+    if (retryAfter) {
+      throw new HttpException(
+        `Juda ko‘p noto‘g‘ri urinish. ${Math.ceil(retryAfter / 60)} daqiqadan so‘ng qayta urinib ko‘ring.`,
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
     const user = await this.prisma.user.findUnique({
-      where: { email: dto.email.toLowerCase().trim() },
+      where: { email },
       include: { memberships: { include: { organization: true }, take: 1 } },
     });
     const passwordMatches = await verify(user?.passwordHash ?? await this.dummyPasswordHash, dto.password);
     if (!user || !user.isActive || !passwordMatches) {
+      this.loginLimiter.registerFailure(email);
       throw new UnauthorizedException('Email yoki parol noto‘g‘ri');
     }
+    this.loginLimiter.reset(email);
     const membership = user.memberships[0];
     if (!membership) throw new UnauthorizedException('Tashkilotga kirish huquqi topilmadi');
 

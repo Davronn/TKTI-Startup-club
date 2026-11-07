@@ -4,6 +4,7 @@ import { AuditService } from '../audit/audit.service';
 import { AuthUser } from '../auth/auth.types';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateMilestoneDto, UpdateMilestoneDto } from './dto/milestone.dto';
+import { rejectNulls } from '../common/reject-nulls';
 
 @Injectable()
 export class MilestonesService {
@@ -48,6 +49,7 @@ export class MilestonesService {
   }
 
   async update(startupId: string, milestoneId: string, dto: UpdateMilestoneDto, user: AuthUser) {
+    rejectNulls(dto, ['title', 'status', 'priority']);
     await this.assertMutableStartup(startupId, user.organizationId);
     const current = await this.assertMilestone(milestoneId, startupId, user.organizationId);
     await this.assertAssignee(dto.assigneeId, user.organizationId);

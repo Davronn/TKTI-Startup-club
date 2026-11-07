@@ -6,6 +6,7 @@ import { slugify } from '../common/slug';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateStageDto } from './dto/create-stage.dto';
 import { UpdateStageDto } from './dto/update-stage.dto';
+import { rejectNulls } from '../common/reject-nulls';
 
 @Injectable()
 export class StagesService {
@@ -48,6 +49,7 @@ export class StagesService {
   }
 
   async update(id: string, dto: UpdateStageDto, user: AuthUser) {
+    rejectNulls(dto, ['name', 'color', 'position', 'isActive']);
     const stage = await this.prisma.startupStage.findFirst({
       where: { id, organizationId: user.organizationId },
       include: { _count: { select: { startups: true } } },
@@ -59,7 +61,7 @@ export class StagesService {
     const updated = await this.prisma.startupStage.update({
       where: { id },
       data: {
-        name: dto.name,
+        name: dto.name?.trim(),
         color: dto.color,
         position: dto.position,
         isActive: dto.isActive,

@@ -49,7 +49,15 @@ export class DashboardService {
           where: { organizationId },
           orderBy: { createdAt: 'desc' },
           take: 8,
-          include: { user: { select: { id: true, fullName: true } } },
+          // Kuzatuvchi/menejer ham dashboardni ko‘radi: IP manzil va o‘zgarishlar tafsilotini bermaymiz
+          select: {
+            id: true,
+            action: true,
+            entity: true,
+            entityId: true,
+            createdAt: true,
+            user: { select: { id: true, fullName: true } },
+          },
         }),
         this.prisma.startup.count({
           where: { organizationId, createdAt: { gte: monthStart } },

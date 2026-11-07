@@ -9,7 +9,22 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule, { cors: false });
   const config = app.get(ConfigService);
 
-  app.getHttpAdapter().getInstance().set('trust proxy', 1);
+  // Nechta ishonchli proxy (Render LB, Next.js rewrite) orqasida ekanimizni belgilaydi.
+  // Noto‘g‘ri qiymat IP-ga asoslangan rate limit va audit IP'larini soxtalashtirishga yo‘l ochadi.
+  const trustProxy = config.get<string>('TRUST_PROXY', '1');
+  app
+    .getHttpAdapter()
+    .getInstance()
+    .set(
+      'trust proxy',
+      /^\d+$/.test(trustProxy)
+        ? Number(trustProxy)
+        : trustProxy === 'true'
+          ? true
+          : trustProxy === 'false'
+            ? false
+            : trustProxy,
+    );
   app.use(helmet());
   app.use(cookieParser());
   const allowedOrigins = config

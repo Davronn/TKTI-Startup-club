@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { apiFetch } from '@/lib/api';
 import { formatDate, initials } from '@/lib/format';
 import { Milestone, MilestonePriority, MilestoneStatus, UserListItem } from '@/lib/types';
+import { ErrorState } from '@/components/ui';
 
 const statusLabels: Record<MilestoneStatus, string> = {
   PLANNED: 'Rejada', IN_PROGRESS: 'Jarayonda', COMPLETED: 'Bajarildi', BLOCKED: 'Bloklangan', CANCELLED: 'Bekor qilindi',
@@ -31,16 +32,21 @@ export function MilestonePanel({ startupId, canEdit, canDelete }: { startupId: s
     dueDate: '', assigneeId: '',
   });
   const key = ['milestones', startupId];
-  const { data = [], isLoading } = useQuery({ queryKey: key, queryFn: () => apiFetch<Milestone[]>(`/startups/${startupId}/milestones`) });
+  const { data = [], isLoading, error, refetch } = useQuery({ queryKey: key, queryFn: () => apiFetch<Milestone[]>(`/startups/${startupId}/milestones`) });
   const { data: users = [] } = useQuery({ queryKey: ['users'], queryFn: () => apiFetch<UserListItem[]>('/users') });
-  const refresh = () => queryClient.invalidateQueries({ queryKey: key });
+  // Dashboard'dagi "muddati o‘tgan vazifalar" ro‘yxati ham shu ma’lumotdan hisoblanadi
+  const refresh = () => Promise.all([
+    queryClient.invalidateQueries({ queryKey: key }),
+    queryClient.invalidateQueries({ queryKey: ['dashboard'] }),
+  ]);
 
   const saveMutation = useMutation({
     mutationFn: () => apiFetch(`/startups/${startupId}/milestones${editingId ? `/${editingId}` : ''}`, {
       method: editingId ? 'PATCH' : 'POST',
       body: JSON.stringify({
         ...form,
-        description: form.description || null,
+        title: form.title.trim(),
+        description: form.description.trim() || null,
         dueDate: form.dueDate || null,
         assigneeId: form.assigneeId || null,
       }),
@@ -83,6 +89,7 @@ export function MilestonePanel({ startupId, canEdit, canDelete }: { startupId: s
   function submit(event: FormEvent) { event.preventDefault(); saveMutation.mutate(); }
 
   if (isLoading) return <div className="finance-loading">Vazifalar yuklanmoqda...</div>;
+  if (error) return <div className="panel-error"><ErrorState error={error} onRetry={() => void refetch()} /></div>;
   return <div className="milestone-panel">
     <div className="milestone-summary">
       <div><span>Umumiy progress</span><strong>{progress}%</strong><div className="budget-track"><i style={{ width: `${progress}%` }} /></div></div>

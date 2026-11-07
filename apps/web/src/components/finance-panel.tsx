@@ -20,6 +20,7 @@ import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { apiFetch } from '@/lib/api';
 import { formatDate, formatMoney } from '@/lib/format';
+import { ErrorState } from '@/components/ui';
 import {
   FinanceCategory,
   FinanceOverview,
@@ -54,7 +55,11 @@ const roundStatusLabels: Record<FundingRoundStatus, string> = {
   PLANNED: 'Rejada', OPEN: 'Ochiq', CLOSED: 'Yopilgan', CANCELLED: 'Bekor qilingan',
 };
 
-const today = () => new Date().toISOString().slice(0, 10);
+// Mahalliy sana: toISOString() UTC qaytaradi va Toshkentda 00:00–05:00 oralig‘ida "kecha" bo‘lib qoladi
+const today = () => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+};
 
 type PanelMode = 'transaction' | 'round' | 'settings' | null;
 
@@ -89,7 +94,7 @@ export function FinancePanel({
   });
 
   const financeKey = ['startup-finance', startupId];
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: financeKey,
     queryFn: () => apiFetch<FinanceOverview>(`/startups/${startupId}/finance`),
   });
@@ -125,7 +130,8 @@ export function FinancePanel({
       body: JSON.stringify({
         ...round,
         targetAmount: round.targetAmount ? Number(round.targetAmount) : null,
-        raisedAmount: round.raisedAmount ? Number(round.raisedAmount) : undefined,
+        // Bo‘sh qoldirilsa 0: aks holda tahrirlashda eski summa o‘zgarmay qolardi
+        raisedAmount: round.raisedAmount ? Number(round.raisedAmount) : 0,
         exchangeRate: Number(round.exchangeRate),
         equityPercent: round.equityPercent ? Number(round.equityPercent) : null,
         preMoneyValuation: round.preMoneyValuation ? Number(round.preMoneyValuation) : null,
@@ -210,11 +216,12 @@ export function FinancePanel({
     setMode('round');
   };
 
-  if (isLoading || !data) return <div className="finance-loading">Moliyaviy ma’lumotlar yuklanmoqda...</div>;
+  if (isLoading) return <div className="finance-loading">Moliyaviy ma’lumotlar yuklanmoqda...</div>;
+  if (error || !data) return <div className="panel-error"><ErrorState error={error} onRetry={() => void refetch()} /></div>;
   const currency = data.summary.baseCurrency;
-  const budgetPercent = data.summary.budgetAmount
-    ? Math.min(100, (data.summary.budgetSpent / data.summary.budgetAmount) * 100)
-    : 0;
+  const budgetRatio = data.summary.budgetAmount ? (data.summary.budgetSpent / data.summary.budgetAmount) * 100 : 0;
+  const budgetPercent = Math.min(100, budgetRatio);
+  const overBudget = budgetRatio > 100;
   const maxCategory = Math.max(...data.summary.expenseByCategory.map((item) => item.amount), 1);
 
   return (
@@ -291,10 +298,10 @@ export function FinancePanel({
 
       <div className="finance-insights">
         <section className="finance-block">
-          <div className="finance-block-head"><div><h4>Budjet nazorati</h4><span>{data.summary.budgetAmount ? `${budgetPercent.toFixed(0)}% sarflandi` : 'Budjet hali belgilanmagan'}</span></div><Banknote size={18} /></div>
+          <div className="finance-block-head"><div><h4>Budjet nazorati</h4><span className={overBudget ? 'budget-over-text' : ''}>{data.summary.budgetAmount ? overBudget ? `Budjetdan ${(budgetRatio - 100).toFixed(0)}% oshib ketdi` : `${budgetPercent.toFixed(0)}% sarflandi` : 'Budjet hali belgilanmagan'}</span></div><Banknote size={18} /></div>
           {data.summary.budgetAmount ? <>
-            <div className="budget-track"><i style={{ width: `${budgetPercent}%` }} /></div>
-            <div className="budget-values"><span>Sarflandi <strong>{formatMoney(data.summary.budgetSpent, currency, true)}</strong></span><span>Qoldi <strong>{formatMoney(data.summary.budgetRemaining || 0, currency, true)}</strong></span></div>
+            <div className={`budget-track ${overBudget ? 'over' : ''}`}><i style={{ width: `${budgetPercent}%` }} /></div>
+            <div className="budget-values"><span>Sarflandi <strong>{formatMoney(data.summary.budgetSpent, currency, true)}</strong></span><span>{overBudget ? 'Ortiqcha' : 'Qoldi'} <strong>{formatMoney(Math.abs(data.summary.budgetRemaining || 0), currency, true)}</strong></span></div>
           </> : <button className="finance-text-button" disabled={!canEdit} onClick={openSettings}>Budjetni belgilash</button>}
         </section>
         <section className="finance-block">

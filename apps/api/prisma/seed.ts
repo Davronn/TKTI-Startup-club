@@ -50,9 +50,10 @@ async function main() {
     },
   });
 
+  // Seed har deployda ishlaydi: mavjud a'zolik va bosqich sozlamalarini qayta yozmaymiz
   await prisma.organizationMember.upsert({
     where: { organizationId_userId: { organizationId: organization.id, userId: admin.id } },
-    update: { role: OrganizationRole.SUPER_ADMIN },
+    update: {},
     create: {
       organizationId: organization.id,
       userId: admin.id,
@@ -65,7 +66,7 @@ async function main() {
     stages.push(
       await prisma.startupStage.upsert({
         where: { organizationId_slug: { organizationId: organization.id, slug: stage.slug } },
-        update: { name: stage.name, color: stage.color, isActive: true },
+        update: {},
         create: { ...stage, organizationId: organization.id },
       }),
     );

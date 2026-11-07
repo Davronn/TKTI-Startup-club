@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import { apiFetch } from '@/lib/api';
 import { formatDate, initials, roleLabels } from '@/lib/format';
 import { Role, UserListItem } from '@/lib/types';
-import { EmptyState, PageLoader } from '@/components/ui';
+import { EmptyState, ErrorState, PageLoader } from '@/components/ui';
 import { useAuth } from '@/providers/auth-provider';
 
 export default function UsersPage() {
@@ -17,7 +17,7 @@ export default function UsersPage() {
   const [resetUserId, setResetUserId] = useState<string | null>(null);
   const [resetPassword, setResetPassword] = useState('');
   const [form, setForm] = useState({ fullName: '', email: '', password: '', role: 'MANAGER' as Role });
-  const { data = [], isLoading } = useQuery({ queryKey: ['users'], queryFn: () => apiFetch<UserListItem[]>('/users') });
+  const { data = [], isLoading, error, refetch } = useQuery({ queryKey: ['users'], queryFn: () => apiFetch<UserListItem[]>('/users') });
 
   const createMutation = useMutation({
     mutationFn: () => apiFetch('/users', { method: 'POST', body: JSON.stringify(form) }),
@@ -49,6 +49,7 @@ export default function UsersPage() {
   });
 
   if (isLoading) return <PageLoader />;
+  if (error) return <ErrorState error={error} onRetry={() => void refetch()} />;
 
   function submit(event: FormEvent) {
     event.preventDefault();
@@ -58,7 +59,7 @@ export default function UsersPage() {
   return (
     <>
       <div className="toolbar">
-        <div><span className="muted" style={{ fontSize: 11 }}>Jami {data.length} ta foydalanuvchi</span></div>
+        <div><span className="muted" style={{ fontSize: 13 }}>Jami {data.length} ta foydalanuvchi</span></div>
         <button className="button button-primary" onClick={() => setShowForm((value) => !value)}><Plus size={16} /> Foydalanuvchi qo‘shish</button>
       </div>
 
@@ -83,8 +84,17 @@ export default function UsersPage() {
                 <span className="role-pill">{roleLabels[item.role]}</span>
               </div>
               <div className="form-grid" style={{ marginTop: 17, gap: 10 }}>
-                <label className="form-field"><span>Rol</span><select value={item.role} disabled={item.id === currentUser?.id} onChange={(event) => updateMutation.mutate({ id: item.id, payload: { role: event.target.value } })}><option value="VIEWER">Kuzatuvchi</option><option value="MANAGER">Menejer</option><option value="ADMIN">Admin</option>{currentUser?.role === 'SUPER_ADMIN' && <option value="SUPER_ADMIN">Super admin</option>}</select></label>
-                <label className="form-field"><span>Holat</span><select value={item.isActive ? 'active' : 'inactive'} disabled={item.id === currentUser?.id} onChange={(event) => updateMutation.mutate({ id: item.id, payload: { isActive: event.target.value === 'active' } })}><option value="active">Faol</option><option value="inactive">Bloklangan</option></select></label>
+                <label className="form-field"><span>Rol</span><select value={item.role} disabled={item.id === currentUser?.id || updateMutation.isPending} onChange={(event) => {
+                  const role = event.target.value as Role;
+                  if (window.confirm(`${item.fullName} roli "${roleLabels[role]}" etib o‘zgartirilsinmi?`)) updateMutation.mutate({ id: item.id, payload: { role } });
+                }}><option value="VIEWER">Kuzatuvchi</option><option value="MANAGER">Menejer</option><option value="ADMIN">Admin</option>{currentUser?.role === 'SUPER_ADMIN' && <option value="SUPER_ADMIN">Super admin</option>}</select></label>
+                <label className="form-field"><span>Holat</span><select value={item.isActive ? 'active' : 'inactive'} disabled={item.id === currentUser?.id || updateMutation.isPending} onChange={(event) => {
+                  const isActive = event.target.value === 'active';
+                  const question = isActive
+                    ? `${item.fullName} hisobi qayta faollashtirilsinmi?`
+                    : `${item.fullName} bloklansinmi? U tizimga kira olmaydi va barcha sessiyalari yopiladi.`;
+                  if (window.confirm(question)) updateMutation.mutate({ id: item.id, payload: { isActive } });
+                }}><option value="active">Faol</option><option value="inactive">Bloklangan</option></select></label>
               </div>
               {item.id !== currentUser?.id && <div className="user-security-actions">
                 {resetUserId === item.id ? <>

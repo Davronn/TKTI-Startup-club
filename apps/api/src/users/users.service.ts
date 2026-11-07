@@ -7,6 +7,7 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { hashPassword } from '../auth/password';
+import { rejectNulls } from '../common/reject-nulls';
 
 @Injectable()
 export class UsersService {
@@ -70,6 +71,7 @@ export class UsersService {
   }
 
   async update(id: string, dto: UpdateUserDto, current: AuthUser) {
+    rejectNulls(dto, ['fullName', 'role', 'isActive']);
     const membership = await this.prisma.organizationMember.findUnique({
       where: { organizationId_userId: { organizationId: current.organizationId, userId: id } },
     });
