@@ -47,10 +47,33 @@ async function requestHeaders(init: RequestInit) {
   const method = (init.method || 'GET').toUpperCase();
   const token = SAFE_METHODS.has(method) ? null : await csrfToken();
   return {
-    ...(init.body ? { 'Content-Type': 'application/json' } : {}),
+    // FormData (fayl yuklash) uchun Content-Type'ni brauzer o‘zi boundary bilan qo‘yadi
+    ...(typeof init.body === 'string' ? { 'Content-Type': 'application/json' } : {}),
     ...(token ? { 'X-CSRF-Token': token } : {}),
     ...init.headers,
   };
+}
+
+const NO_REFRESH_PATHS = ['/auth/login', '/auth/refresh', '/auth/logout', '/auth/csrf'];
+
+// Bir vaqtda bir nechta so‘rov 401 olsa, faqat bitta refresh yuboriladi
+let refreshPromise: Promise<boolean> | null = null;
+
+function refreshSession() {
+  if (!refreshPromise) {
+    refreshPromise = (async () => {
+      const response = await fetch('/api/backend/auth/refresh', {
+        method: 'POST',
+        credentials: 'include',
+        cache: 'no-store',
+        headers: await requestHeaders({ method: 'POST' }),
+      });
+      return response.ok;
+    })()
+      .catch(() => false)
+      .finally(() => { refreshPromise = null; });
+  }
+  return refreshPromise;
 }
 
 export async function apiFetch<T>(
@@ -66,14 +89,9 @@ export async function apiFetch<T>(
     headers,
   });
 
-  if (response.status === 401 && retry && !path.startsWith('/auth/')) {
-    const refreshed = await fetch('/api/backend/auth/refresh', {
-      method: 'POST',
-      credentials: 'include',
-      cache: 'no-store',
-      headers: await requestHeaders({ method: 'POST' }),
-    });
-    if (refreshed.ok) return apiFetch<T>(path, init, false);
+  // /auth/me ham refresh qilinadi: aks holda 15 daqiqadan keyin sahifa yangilansa sessiya yo‘qoladi
+  if (response.status === 401 && retry && !NO_REFRESH_PATHS.some((prefix) => path.startsWith(prefix))) {
+    if (await refreshSession()) return apiFetch<T>(path, init, false);
   }
 
   const data = await parseResponse(response);
@@ -96,4 +114,30 @@ export function toQuery(params: Record<string, string | number | undefined | nul
   });
   const result = search.toString();
   return result ? `?${result}` : '';
+}
+
+/** Fayl yuklab olish (Excel/Word/CSV): sessiya tugagan bo‘lsa bir marta yangilaydi. */
+export async function apiDownload(path: string, fallbackName: string) {
+  let response = await fetch(`/api/backend${path}`, { credentials: 'include', cache: 'no-store' });
+  if (response.status === 401 && (await refreshSession())) {
+    response = await fetch(`/api/backend${path}`, { credentials: 'include', cache: 'no-store' });
+  }
+  if (!response.ok) {
+    const data = await parseResponse(response).catch(() => null);
+    const message =
+      typeof data === 'object' && data && 'message' in data
+        ? String(Array.isArray((data as any).message) ? (data as any).message.join(', ') : (data as any).message)
+        : 'Faylni tayyorlab bo‘lmadi';
+    throw new ApiError(message, response.status, data);
+  }
+  const disposition = response.headers.get('content-disposition') || '';
+  const fileName = /filename="([^"]+)"/.exec(disposition)?.[1] || fallbackName;
+  const url = URL.createObjectURL(await response.blob());
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
 }

@@ -74,7 +74,17 @@ export interface Startup {
   stageHistory?: StageHistory[];
   createdAt: string;
   updatedAt: string;
+  files?: StartupDocument[];
   _count?: { members: number; notes: number };
+}
+
+export interface StartupDocument {
+  id: string;
+  name: string;
+  contentType: string;
+  size: number;
+  createdAt: string;
+  uploader?: { id: string; fullName: string } | null;
 }
 
 export interface StartupNote {

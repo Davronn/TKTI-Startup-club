@@ -16,6 +16,9 @@ import { FinanceModule } from './finance/finance.module';
 import { MilestonesModule } from './milestones/milestones.module';
 import { validateEnvironment } from './config/environment';
 import { CsrfGuard } from './auth/csrf.guard';
+import { CashModule } from './cash/cash.module';
+import { StartupFilesModule } from './startup-files/startup-files.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
@@ -31,9 +34,12 @@ import { CsrfGuard } from './auth/csrf.guard';
     UsersModule,
     StagesModule,
     StartupsModule,
+    StartupFilesModule,
     FinanceModule,
     MilestonesModule,
+    CashModule,
     DashboardModule,
+    NotificationsModule,
   ],
   controllers: [HealthController],
   providers: [

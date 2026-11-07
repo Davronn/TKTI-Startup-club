@@ -32,5 +32,9 @@
     "@prisma/engines@6.2.1": true,
     "esbuild@0.28.2": true,
     "prisma@6.2.1": true
+  },
+  "overrides": {
+    "multer": "2.5.0",
+    "uuid": "11.1.1"
   }
 }

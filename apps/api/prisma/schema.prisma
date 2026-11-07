@@ -110,6 +110,9 @@ model Organization {
   financeTransactions StartupFinanceTransaction[]
   fundingRounds StartupFundingRound[]
   milestones StartupMilestone[]
+  cashTransactions CashTransaction[]
+  cashReceipts     CashReceipt[]
+  cashSettings     CashSettings?
 
   @@map("organizations")
 }
@@ -142,6 +145,11 @@ model User {
   assignedMilestones StartupMilestone[]               @relation("MilestoneAssignee")
   createdMilestones StartupMilestone[]                @relation("MilestoneCreatedBy")
   updatedMilestones StartupMilestone[]                @relation("MilestoneUpdatedBy")
+  cashTransactionsCreated  CashTransaction[] @relation("CashTransactionCreatedBy")
+  cashTransactionsUpdated  CashTransaction[] @relation("CashTransactionUpdatedBy")
+  cashTransactionsArchived CashTransaction[] @relation("CashTransactionArchivedBy")
+  cashReceipts             CashReceipt[]
+  cashSettingsUpdated      CashSettings[]
 
   @@map("users")
 }
@@ -227,6 +235,8 @@ model Startup {
   fundingRounds StartupFundingRound[]
   milestones StartupMilestone[]
 
+  cashTransactions CashTransaction[]
+
   @@unique([organizationId, slug])
   @@index([organizationId, status])
   @@index([organizationId, currentStageId])
@@ -286,15 +296,24 @@ model StartupNote {
   @@map("startup_notes")
 }
 
+enum StartupFileKind {
+  LOGO
+  DOCUMENT
+}
+
 model StartupFile {
-  id          String   @id @default(uuid()) @db.Uuid
-  startupId   String   @db.Uuid @map("startup_id")
+  id          String          @id @default(uuid()) @db.Uuid
+  startupId   String          @db.Uuid @map("startup_id")
+  kind        StartupFileKind @default(DOCUMENT)
   name        String
-  objectKey   String   @unique @map("object_key")
-  contentType String   @map("content_type")
+  /// S3 ishlatilganda obyekt kaliti; bazada saqlanganda "db:<id>"
+  objectKey   String          @unique @map("object_key")
+  contentType String          @map("content_type")
   size        Int
-  uploadedBy  String   @db.Uuid @map("uploaded_by")
-  createdAt   DateTime @default(now()) @map("created_at")
+  /// S3 sozlanmagan bo‘lsa fayl mazmuni shu yerda saqlanadi
+  data        Bytes?
+  uploadedBy  String          @db.Uuid @map("uploaded_by")
+  createdAt   DateTime        @default(now()) @map("created_at")
 
   startup  Startup @relation(fields: [startupId], references: [id], onDelete: Cascade)
   uploader User    @relation(fields: [uploadedBy], references: [id], onDelete: Restrict)
@@ -478,4 +497,96 @@ model AuditLog {
   @@index([organizationId, createdAt])
   @@index([entity, entityId])
   @@map("audit_logs")
+}
+
+// ---------------- Bo'lim kassasi ----------------
+
+enum CashTransactionKind {
+  IN
+  OUT
+  MOVE
+}
+
+enum CashAccount {
+  CASH
+  CARD
+}
+
+model CashTransaction {
+  id             String              @id @default(uuid()) @db.Uuid
+  organizationId String              @db.Uuid @map("organization_id")
+  kind           CashTransactionKind
+  docNo          Int                 @map("doc_no")
+  amount         Decimal             @db.Decimal(20, 2)
+  date           DateTime            @db.Date
+  category       String
+  note           String              @default("")
+  person         String              @default("")
+  quantity       Decimal?            @db.Decimal(14, 3)
+  unitPrice      Decimal?            @db.Decimal(20, 2) @map("unit_price")
+  account        CashAccount?
+  fromAccount    CashAccount?        @map("from_account")
+  toAccount      CashAccount?        @map("to_account")
+  recipient      String              @default("")
+  commissionPct  Decimal             @default(0) @db.Decimal(5, 2) @map("commission_pct")
+  commission     Decimal             @default(0) @db.Decimal(20, 2)
+  usage          String              @default("")
+  startupId      String?             @db.Uuid @map("startup_id")
+  receiptId      String?             @db.Uuid @map("receipt_id")
+  archivedAt     DateTime?           @map("archived_at")
+  archiveReason  String              @default("") @map("archive_reason")
+  archivedById   String?             @db.Uuid @map("archived_by_id")
+  createdById    String              @db.Uuid @map("created_by_id")
+  updatedById    String              @db.Uuid @map("updated_by_id")
+  createdAt      DateTime            @default(now()) @map("created_at")
+  updatedAt      DateTime            @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  startup      Startup?     @relation(fields: [startupId], references: [id], onDelete: SetNull)
+  receipt      CashReceipt? @relation(fields: [receiptId], references: [id], onDelete: SetNull)
+  archivedBy   User?        @relation("CashTransactionArchivedBy", fields: [archivedById], references: [id], onDelete: SetNull)
+  createdBy    User         @relation("CashTransactionCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy    User         @relation("CashTransactionUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, kind, docNo])
+  @@index([organizationId, date])
+  @@index([startupId])
+  @@map("cash_transactions")
+}
+
+model CashReceipt {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @db.Uuid @map("organization_id")
+  mimeType       String   @map("mime_type")
+  size           Int
+  fileName       String   @map("file_name")
+  data           Bytes
+  createdById    String   @db.Uuid @map("created_by_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy    User              @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  transactions CashTransaction[]
+
+  @@index([organizationId])
+  @@map("cash_receipts")
+}
+
+model CashSettings {
+  organizationId String    @id @db.Uuid @map("organization_id")
+  orgName        String    @default("TKTI") @map("org_name")
+  unitName       String    @default("Startaplarni rivojlantirish va ekotizimni joriy etish bo‘limi") @map("unit_name")
+  head           String    @default("")
+  accountant     String    @default("")
+  openingCash    Decimal   @default(0) @db.Decimal(20, 2) @map("opening_cash")
+  openingCard    Decimal   @default(0) @db.Decimal(20, 2) @map("opening_card")
+  openingDate    DateTime? @db.Date @map("opening_date")
+  defaultCommissionPct Decimal @default(1) @db.Decimal(5, 2) @map("default_commission_pct")
+  updatedById    String?   @db.Uuid @map("updated_by_id")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  updatedBy    User?        @relation(fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@map("cash_settings")
 }
