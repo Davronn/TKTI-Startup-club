@@ -28,6 +28,7 @@ Startap klubining ichki boshqaruv tizimi. V1 startaplarni ro‘yxatga olish, riv
 - Kontragent, to‘lov usuli, chek/hujjat havolasi va moliyaviy audit tarixi
 - CSV eksport
 - Multi-tenantga tayyor `organization_id` modeli
+- **Bo‘lim kassasi** (`/kassa`): naqd va karta hisobi, kirim/chiqim/o‘tkazma, hujjat raqamlari (K-001, Ch-001, O-001), karta komissiyasi, chek rasmlari (bazada saqlanadi), ixtiyoriy startapga bog‘lash, arxiv va Excel/Word/CSV hisobotlar
 - Filtrlanadigan audit jurnali, arxivlash va arxivdan tiklash
 - Foydalanuvchi parolini o‘zi almashtirishi, faol qurilmalar/sessiyalarni ko‘rishi va masofadan yopishi
 - Admin tomonidan xavfsiz parol reseti va barcha sessiyalarni darhol bekor qilish
@@ -90,6 +91,18 @@ Render konfiguratsiyasida web va API bitta servis jarayonida ishlaydi. Katta pro
 Repository root'idagi `render.yaml` Render'da Next.js, NestJS va PostgreSQL'ni yaratadi. `main` branch'ga har bir push avtomatik deployni ishga tushiradi.
 
 Batafsil qo'llanma: [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md)
+
+## Bo‘lim kassasi
+
+Kassa asosiy tizim login va rollaridan foydalanadi:
+
+| Rol | Kassada |
+|---|---|
+| Kuzatuvchi | Ko‘rish va hisobot yuklab olish |
+| Menejer | Yozuv qo‘shish, tahrirlash, chek yuklash, arxivlash/tiklash |
+| Admin, Super admin | Hammasi + kassa sozlamalari (boshlang‘ich qoldiq, mas’ullar) va arxivdan butunlay o‘chirish |
+
+Birinchi ishga tushirishda `npm run db:migrate` (lokal) yoki `npm run db:deploy` (production) `cash_*` jadvallarini yaratadi. Keyin **Bo‘lim kassasi → Sozlamalar**da boshlang‘ich qoldiqni kiriting. API: `/api/v1/cash/...`.
 
 ## Database jarayoni
 
